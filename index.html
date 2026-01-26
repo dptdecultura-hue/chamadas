@@ -12,17 +12,18 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@700;900&display=swap');
         body { font-family: 'Inter', sans-serif; background: #e2e8f0; }
         @media print {
-            @page { size: landscape; margin: 0.5cm; }
             .no-print { display: none !important; }
             body { background: white !important; }
-            .folha-chamada { width: 100% !important; margin: 0 !important; padding: 0.5cm !important; border: none !important; }
+            .folha-chamada { width: 100% !important; margin: 0 !important; padding: 0.2cm !important; border: none !important; }
             table { border: 2pt solid black !important; width: 100%; }
-            th, td { border: 1.5pt solid black !important; height: 38px !important; }
+            th, td { border: 1.5pt solid black !important; height: 32px !important; }
         }
-        .folha-chamada { width: 29.7cm; min-height: 20cm; padding: 1cm; background: white; margin: 20px auto; border: 4px solid #000; }
-        .input-aluno { width: 100%; border: none; outline: none; text-transform: uppercase; font-weight: 900; font-size: 16px; background: transparent; }
-        .card-professor { background: white; border: 4px solid black; padding: 1.5rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: 0.2s; }
-        .card-professor:hover { transform: scale(1.05); box-shadow: 10px 10px 0px #000; }
+        .folha-chamada { width: 29.7cm; min-height: 20cm; padding: 1cm; background: white; margin: 10px auto; border: 4px solid #000; }
+        .input-aluno { width: 100%; border: none; outline: none; text-transform: uppercase; font-weight: 900; font-size: 14px; background: transparent; }
+        .celula-presenca { cursor: pointer; user-select: none; font-weight: 900; text-align: center; font-size: 12px; transition: 0.1s; }
+        .celula-presenca:hover { background: #f0f0f0; }
+        .status-p { color: #16a34a; }
+        .status-f { color: #dc2626; background: #fee2e2; }
     </style>
 </head>
 <body>
@@ -31,7 +32,6 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // CONFIGURAÇÃO CONECTADA ÀS TUAS CHAVES
         const SUPABASE_URL = 'https://wilmewhekkvcocjbydxb.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_mHXaPK-MFZYUggo-qy2soQ_yDDBr1IH';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -43,55 +43,56 @@
             const [mes, setMes] = useState(new Date().getMonth());
             const [turmas, setTurmas] = useState([]);
             const [alunos, setAlunos] = useState({});
+            const [presencas, setPresencas] = useState({});
             const [loading, setLoading] = useState(true);
 
-            useEffect(() => {
-                fetchTurmas();
-            }, []);
+            useEffect(() => { fetchTurmas(); }, []);
+            useEffect(() => { if (idAtivo) { fetchDados(); } }, [idAtivo, mes]);
 
             async function fetchTurmas() {
-                const { data, error } = await supabaseClient.from('turmas').select('*');
-                if (!error) setTurmas(data);
+                const { data } = await supabaseClient.from('turmas').select('*');
+                if (data) setTurmas(data);
                 setLoading(false);
             }
 
-            useEffect(() => {
-                if (idAtivo) {
-                    fetchAlunos();
-                }
-            }, [idAtivo, mes]);
-
-            async function fetchAlunos() {
-                const { data, error } = await supabaseClient
-                    .from('alunos')
-                    .select('*')
-                    .eq('turma_id', idAtivo)
-                    .eq('mes', mes);
+            async function fetchDados() {
+                const { data: alData } = await supabaseClient.from('alunos').select('*').eq('turma_id', idAtivo).eq('mes', mes);
+                const { data: preData } = await supabaseClient.from('frequencia').select('*').eq('turma_id', idAtivo).eq('mes', mes);
                 
-                if (!error) {
-                    const grid = Array(15).fill("");
-                    data.forEach(al => grid[al.posicao] = al.nome);
-                    setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: grid } }));
-                }
+                const gridAl = Array(15).fill("");
+                alData?.forEach(al => gridAl[al.posicao] = al.nome);
+                setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: gridAl } }));
+
+                const gridPre = {};
+                preData?.forEach(p => {
+                    if(!gridPre[p.aluno_posicao]) gridPre[p.aluno_posicao] = {};
+                    gridPre[p.aluno_posicao][p.data_aula] = p.status;
+                });
+                setPresencas(gridPre);
             }
 
             const salvarAluno = async (index, nome) => {
                 const nomeFinal = nome.toUpperCase().trim();
-                
-                // Atualiza o estado visual imediatamente
-                const novoGrid = [...(alunos[idAtivo]?.[mes] || Array(15).fill(""))];
-                novoGrid[index] = nomeFinal;
-                setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: novoGrid } }));
+                await supabaseClient.from('alunos').upsert({ turma_id: idAtivo, nome: nomeFinal, mes: mes, posicao: index }, { onConflict: 'turma_id, mes, posicao' });
+            };
 
-                // Salva no banco
-                const { error } = await supabaseClient.from('alunos').upsert({
-                    turma_id: idAtivo,
-                    nome: nomeFinal,
-                    mes: mes,
-                    posicao: index
-                }, { onConflict: 'turma_id, mes, posicao' });
-                
-                if (error) console.error("Erro ao guardar:", error.message);
+            const alternarPresenca = async (alunoPos, dataAula) => {
+                const atual = presencas[alunoPos]?.[dataAula] || "";
+                let novoStatus = "";
+                if (atual === "") novoStatus = "P";
+                else if (atual === "P") novoStatus = "F";
+                else novoStatus = "";
+
+                setPresencas(prev => ({
+                    ...prev,
+                    [alunoPos]: { ...prev[alunoPos], [dataAula]: novoStatus }
+                }));
+
+                if (novoStatus === "") {
+                    await supabaseClient.from('frequencia').delete().match({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula });
+                } else {
+                    await supabaseClient.from('frequencia').upsert({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula, status: novoStatus });
+                }
             };
 
             const getDatasDoMes = (diasSemana) => {
@@ -106,23 +107,15 @@
                 return datas.slice(0, 10);
             };
 
-            const getIcone = (p) => {
-                const i = {"ESTHER":"🎤","CARLOS":"🎹","SAMUEL":"🎻","FELIPE":"🪈","MARCELO CALAZANS":"🧩","BECKA/RODRIGO":"🥁","JOÃO PAULO":"🎸","MICHEL":"🎸"};
-                return i[p] || "🎵";
-            };
-
             if (loading) return <div className="h-screen flex items-center justify-center font-black">LIGANDO AO BANCO...</div>;
 
             if (tela === 'menu') return (
                 <div className="min-h-screen">
-                    <header className="bg-black text-white p-4 flex justify-between items-center border-b-8 border-yellow-500">
-                        <h1 className="text-3xl font-black italic uppercase">CASA DA MÚSICA 2026</h1>
-                    </header>
-                    <div className="p-10 max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <header className="bg-black text-white p-4 border-b-8 border-yellow-500 font-black italic text-3xl">CASA DA MÚSICA 2026</header>
+                    <div className="p-10 grid grid-cols-2 md:grid-cols-4 gap-6">
                         {["JOÃO PAULO", "MICHEL", "ESTHER", "BECKA/RODRIGO", "CARLOS", "MARCELO CALAZANS", "SAMUEL", "FELIPE"].map(p => (
-                            <div key={p} onClick={() => {setProfSel(p); setTela('lista');}} className="card-professor">
-                                <span className="text-5xl">{getIcone(p)}</span>
-                                <h3 className="font-black mt-3 text-center uppercase text-sm">{p}</h3>
+                            <div key={p} onClick={() => {setProfSel(p); setTela('lista');}} className="card-professor bg-white border-4 border-black p-6 cursor-pointer text-center font-black">
+                                <h3 className="uppercase">{p}</h3>
                             </div>
                         ))}
                     </div>
@@ -132,15 +125,12 @@
             if (tela === 'lista') return (
                 <div className="p-10 max-w-5xl mx-auto">
                     <button onClick={() => setTela('menu')} className="font-black underline mb-4 text-red-600">← VOLTAR</button>
-                    <h2 className="text-4xl font-black uppercase mb-6 border-b-4 border-black pb-2">{profSel}</h2>
                     <div className="grid grid-cols-2 gap-6">
                         {[1, 2].map(dKey => (
                             <div key={dKey} className="bg-white border-4 border-black p-4">
-                                <h3 className="bg-black text-white p-2 font-black text-center mb-4 uppercase">
-                                    {dKey === 1 ? "Segunda e Quarta" : "Terça e Quinta"}
-                                </h3>
+                                <h3 className="bg-black text-white p-2 font-black text-center mb-4 uppercase">{dKey === 1 ? "SEG/QUA" : "TER/QUI"}</h3>
                                 {turmas.filter(c => c.professor === profSel && (dKey === 1 ? c.dias.includes(1) : c.dias.includes(2))).map(c => (
-                                    <div key={c.id} onClick={() => {setIdAtivo(c.id); setTela('chamada');}} className="border-2 border-black p-2 mb-2 cursor-pointer hover:bg-yellow-400 font-black uppercase text-xs flex justify-between">
+                                    <div key={c.id} onClick={() => {setIdAtivo(c.id); setTela('chamada');}} className="border-2 border-black p-2 mb-2 cursor-pointer hover:bg-yellow-400 font-black flex justify-between uppercase text-xs">
                                         <span>{c.horario}</span> <span>{c.oficina}</span>
                                     </div>
                                 ))}
@@ -151,64 +141,76 @@
             );
 
             const cursoAtivo = turmas.find(c => c.id === idAtivo);
-            const datasAutomáticas = getDatasDoMes(cursoAtivo.dias);
+            const datasAulas = getDatasDoMes(cursoAtivo.dias);
             const nomesAtuais = (alunos[idAtivo] && alunos[idAtivo][mes]) || Array(15).fill("");
 
             return (
                 <div className="min-h-screen bg-zinc-300 p-2">
-                    <div className="no-print bg-black text-white p-4 mb-4 flex justify-between items-center border-b-4 border-yellow-500 max-w-7xl mx-auto">
+                    <div className="no-print bg-black text-white p-4 mb-4 flex justify-between items-center border-b-4 border-yellow-500">
                         <h2 className="font-black uppercase">{cursoAtivo.professor} | {cursoAtivo.horario}</h2>
                         <div className="flex gap-4">
                             <select className="text-black p-1 font-black" value={mes} onChange={e => setMes(Number(e.target.value))}>
                                 {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"].map((m,i)=><option key={i} value={i}>{m.toUpperCase()}</option>)}
                             </select>
-                            <button onClick={()=>window.print()} className="bg-green-600 px-6 py-1 font-black border border-white">IMPRIMIR</button>
-                            <button onClick={()=>setTela('lista')} className="bg-zinc-700 px-4 py-1 font-black border border-white">VOLTAR</button>
+                            <button onClick={()=>window.print()} className="bg-green-600 px-6 py-1 font-black border">IMPRIMIR</button>
+                            <button onClick={()=>setTela('lista')} className="bg-zinc-700 px-4 py-1 font-black border">VOLTAR</button>
                         </div>
                     </div>
 
                     <div className="folha-chamada mx-auto">
-                        <div className="flex justify-between items-end mb-4">
+                        <div className="flex justify-between items-end mb-4 border-b-4 border-black pb-2">
                             <div>
                                 <h1 className="text-4xl font-black uppercase italic leading-none">{cursoAtivo.professor}</h1>
-                                <p className="text-xl font-black uppercase border-b-[3px] border-black inline-block mt-1">OFICINA: {cursoAtivo.oficina}</p>
+                                <p className="text-xl font-black uppercase mt-1">OFICINA: {cursoAtivo.oficina}</p>
+                                <p className="text-xs font-black italic text-red-600 no-print">* Clique nos quadradinhos: 1x Presença (P), 2x Falta (F), 3x Limpar</p>
                             </div>
                             <div className="text-right">
-                                <div className="bg-black text-white px-6 py-1 text-3xl font-black uppercase italic">
-                                    {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][mes]}
-                                </div>
+                                <div className="bg-black text-white px-6 py-1 text-3xl font-black uppercase">{["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][mes]}</div>
                             </div>
                         </div>
 
                         <table className="w-full border-collapse">
                             <thead>
                                 <tr className="bg-zinc-100">
-                                    <th className="border-2 border-black p-1 w-10 text-lg font-black text-center">Nº</th>
-                                    <th className="border-2 border-black p-1 text-left w-1/3 text-lg font-black">NOME DO ALUNO</th>
-                                    {datasAutomáticas.map(dt => (
-                                        <th key={dt} className="border-2 border-black p-1 w-16 text-center text-[10px] font-black bg-white">{dt}</th>
+                                    <th className="border-2 border-black p-1 w-8 text-sm font-black text-center">Nº</th>
+                                    <th className="border-2 border-black p-1 text-left w-64 text-sm font-black">NOME DO ALUNO</th>
+                                    {datasAulas.map(dt => (
+                                        <th key={dt} className="border-2 border-black p-1 w-12 text-center text-[10px] font-black">{dt}</th>
                                     ))}
-                                    {[...Array(10 - datasAutomáticas.length)].map((_, i) => (
-                                        <th key={i} className="border-2 border-black w-16"></th>
+                                    {[...Array(10 - datasAulas.length)].map((_, i) => (
+                                        <th key={i} className="border-2 border-black w-12"></th>
                                     ))}
+                                    <th className="border-2 border-black p-1 w-16 text-center text-[10px] font-black bg-yellow-100">TOTAL FALTAS</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {nomesAtuais.map((nome, i) => (
-                                    <tr key={i} className="h-10">
-                                        <td className="border-2 border-black text-center font-black text-sm">{i+1}</td>
-                                        <td className="border-2 border-black px-2">
-                                            <input 
-                                                className="input-aluno" 
-                                                defaultValue={nome}
-                                                onBlur={(e) => salvarAluno(i, e.target.value)}
-                                            />
-                                        </td>
-                                        {[...Array(10)].map((_, di) => (
-                                            <td key={di} className="border-2 border-black"></td>
-                                        ))}
-                                    </tr>
-                                ))}
+                                {nomesAtuais.map((nome, i) => {
+                                    const faltas = Object.values(presencas[i] || {}).filter(v => v === "F").length;
+                                    return (
+                                        <tr key={i} className="h-10">
+                                            <td className="border-2 border-black text-center font-black text-sm">{i+1}</td>
+                                            <td className="border-2 border-black px-2">
+                                                <input className="input-aluno" defaultValue={nome} onBlur={(e) => salvarAluno(i, e.target.value)} />
+                                            </td>
+                                            {datasAulas.map(dt => {
+                                                const status = presencas[i]?.[dt] || "";
+                                                return (
+                                                    <td key={dt} 
+                                                        onClick={() => alternarPresenca(i, dt)}
+                                                        className={`border-2 border-black celula-presenca status-${status.toLowerCase()}`}>
+                                                        {status}
+                                                    </td>
+                                                );
+                                            })}
+                                            {[...Array(10 - datasAulas.length)].map((_, di) => (
+                                                <td key={di} className="border-2 border-black"></td>
+                                            ))}
+                                            <td className={`border-2 border-black text-center font-black text-lg ${faltas >= 4 ? 'bg-red-600 text-white' : ''}`}>
+                                                {faltas > 0 ? faltas : ""}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
