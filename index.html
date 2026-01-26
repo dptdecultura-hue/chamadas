@@ -31,7 +31,7 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // CONFIGURAÇÃO CONECTADA COM SUAS CHAVES
+        // CONFIGURAÇÃO CONECTADA ÀS TUAS CHAVES
         const SUPABASE_URL = 'https://wilmewhekkvcocjbydxb.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_mHXaPK-MFZYUggo-qy2soQ_yDDBr1IH';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -45,45 +45,53 @@
             const [alunos, setAlunos] = useState({});
             const [loading, setLoading] = useState(true);
 
-            // Carregar Turmas do Supabase
             useEffect(() => {
-                async function fetchTurmas() {
-                    const { data, error } = await supabaseClient.from('turmas').select('*');
-                    if (!error) setTurmas(data);
-                    setLoading(false);
-                }
                 fetchTurmas();
             }, []);
 
-            // Carregar Alunos da Turma Selecionada
+            async function fetchTurmas() {
+                const { data, error } = await supabaseClient.from('turmas').select('*');
+                if (!error) setTurmas(data);
+                setLoading(false);
+            }
+
             useEffect(() => {
                 if (idAtivo) {
-                    async function fetchAlunos() {
-                        const { data, error } = await supabaseClient
-                            .from('alunos')
-                            .select('*')
-                            .eq('turma_id', idAtivo)
-                            .eq('mes', mes);
-                        
-                        if (!error) {
-                            const grid = Array(15).fill("");
-                            data.forEach(al => grid[al.posicao] = al.nome);
-                            setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: grid } }));
-                        }
-                    }
                     fetchAlunos();
                 }
             }, [idAtivo, mes]);
 
+            async function fetchAlunos() {
+                const { data, error } = await supabaseClient
+                    .from('alunos')
+                    .select('*')
+                    .eq('turma_id', idAtivo)
+                    .eq('mes', mes);
+                
+                if (!error) {
+                    const grid = Array(15).fill("");
+                    data.forEach(al => grid[al.posicao] = al.nome);
+                    setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: grid } }));
+                }
+            }
+
             const salvarAluno = async (index, nome) => {
+                const nomeFinal = nome.toUpperCase().trim();
+                
+                // Atualiza o estado visual imediatamente
+                const novoGrid = [...(alunos[idAtivo]?.[mes] || Array(15).fill(""))];
+                novoGrid[index] = nomeFinal;
+                setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: novoGrid } }));
+
+                // Salva no banco
                 const { error } = await supabaseClient.from('alunos').upsert({
                     turma_id: idAtivo,
-                    nome: nome.toUpperCase(),
+                    nome: nomeFinal,
                     mes: mes,
                     posicao: index
                 }, { onConflict: 'turma_id, mes, posicao' });
                 
-                if (error) console.error("Erro ao salvar:", error);
+                if (error) console.error("Erro ao guardar:", error.message);
             };
 
             const getDatasDoMes = (diasSemana) => {
@@ -103,13 +111,12 @@
                 return i[p] || "🎵";
             };
 
-            if (loading) return <div className="h-screen flex items-center justify-center font-black">CONECTANDO AO BANCO DE DADOS...</div>;
+            if (loading) return <div className="h-screen flex items-center justify-center font-black">LIGANDO AO BANCO...</div>;
 
             if (tela === 'menu') return (
                 <div className="min-h-screen">
                     <header className="bg-black text-white p-4 flex justify-between items-center border-b-8 border-yellow-500">
                         <h1 className="text-3xl font-black italic uppercase">CASA DA MÚSICA 2026</h1>
-                        <div className="flex items-center gap-2"><div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div><span className="text-xs font-bold">NUVEM ATIVA</span></div>
                     </header>
                     <div className="p-10 max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6">
                         {["JOÃO PAULO", "MICHEL", "ESTHER", "BECKA/RODRIGO", "CARLOS", "MARCELO CALAZANS", "SAMUEL", "FELIPE"].map(p => (
@@ -165,13 +172,11 @@
                             <div>
                                 <h1 className="text-4xl font-black uppercase italic leading-none">{cursoAtivo.professor}</h1>
                                 <p className="text-xl font-black uppercase border-b-[3px] border-black inline-block mt-1">OFICINA: {cursoAtivo.oficina}</p>
-                                <p className="text-sm font-black block mt-1">HORÁRIO: {cursoAtivo.horario} | DIAS: {cursoAtivo.dias.includes(1) ? "SEGUNDA E QUARTA" : "TERÇA E QUINTA"}</p>
                             </div>
                             <div className="text-right">
                                 <div className="bg-black text-white px-6 py-1 text-3xl font-black uppercase italic">
                                     {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][mes]}
                                 </div>
-                                <p className="font-black mt-1 text-[10px] uppercase tracking-widest">Casa da Música 2026</p>
                             </div>
                         </div>
 
@@ -195,12 +200,7 @@
                                         <td className="border-2 border-black px-2">
                                             <input 
                                                 className="input-aluno" 
-                                                value={nome} 
-                                                onChange={e => {
-                                                    const novo = [...nomesAtuais];
-                                                    novo[i] = e.target.value;
-                                                    setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: novo } }));
-                                                }}
+                                                defaultValue={nome}
                                                 onBlur={(e) => salvarAluno(i, e.target.value)}
                                             />
                                         </td>
@@ -211,10 +211,6 @@
                                 ))}
                             </tbody>
                         </table>
-                        <div className="mt-6 flex justify-between items-center font-black text-[10px] uppercase">
-                            <span>VISTO COORDENAÇÃO: ____________________________________</span>
-                            <span>ASSINATURA PROFESSOR: ____________________________________</span>
-                        </div>
                     </div>
                 </div>
             );
