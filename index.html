@@ -3,173 +3,233 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Administrativo - Casa da Música</title>
+    <title>Sistema Casa da Música - Chamada Automática</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
-        /* --- VISUAL DA TELA (ADMINISTRADOR) --- */
-        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; }
+        /* ESTILOS PARA TELA (O que você vê no navegador) */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; }
         
-        .painel-admin { 
-            background: white; padding: 20px; border-radius: 8px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 1100px; margin: 0 auto 30px; 
+        .no-print {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
-        .stats-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            margin-right: 5px;
-        }
-        .bg-presenca { background: #d4edda; color: #155724; }
-        .bg-falta { background: #f8d7da; color: #721c24; }
-
-        select { width: 100%; padding: 12px; margin: 10px 0; border-radius: 5px; border: 1px solid #ddd; font-size: 16px; }
+        h3 { margin-top: 0; color: #333; }
         
-        .btn-imprimir { 
-            background-color: #28a745; color: white; padding: 12px; border: none; 
-            border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px;
+        select {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            font-size: 16px;
         }
 
-        /* --- VISUAL DA TABELA --- */
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; background: white; }
-        th, td { border: 1px solid #000; height: 30px; font-size: 10px; text-align: center; }
-        
-        .col-nome { width: 250px; text-align: left !important; padding-left: 8px; font-weight: bold; }
-        .col-dia { width: 30px; background-color: #f8f9fa; }
-        
-        /* Colunas de Estatísticas (SÓ APARECEM NA TELA) */
-        .col-admin { width: 60px; background-color: #e9ecef; font-weight: bold; }
+        .btn-imprimir {
+            background-color: #28a745;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+        }
 
-        /* --- REGRAS DE IMPRESSÃO (PROFESSOR) --- */
+        .btn-imprimir:hover { background-color: #218838; }
+
+        /* ESTILOS PARA A FOLHA (O que sai na impressora) */
+        .print-area {
+            background: white;
+            padding: 10px;
+            display: none; /* Escondido na tela, aparece na impressão */
+        }
+
+        .header-chamada {
+            border: 2px solid #000;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        .info-linha {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed; /* Garante que as colunas não dancem */
+        }
+
+        th, td {
+            border: 1px solid #000;
+            height: 30px;
+            font-size: 9px;
+            text-align: center;
+        }
+
+        .col-nome {
+            width: 25%; /* Nome ocupa 1/4 da folha */
+            text-align: left !important;
+            padding-left: 5px;
+            font-weight: bold;
+            font-size: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .col-dia {
+            width: 2.4%; /* Divide o restante para os 31 dias */
+            background-color: #f0f0f0;
+        }
+
+        /* CONFIGURAÇÃO DE IMPRESSÃO */
         @media print {
-            @page { size: A4 landscape; margin: 8mm; }
-            
-            /* Esconde o painel de seleção e as colunas de estatísticas */
-            .painel-admin, .col-admin { display: none !important; }
-            
+            @page { 
+                size: A4 landscape; /* Folha deitada */
+                margin: 5mm; 
+            }
+            .no-print { display: none; }
+            .print-area { display: block; }
             body { background: white; padding: 0; }
             
-            .area-chamada { display: block !important; }
-            
-            /* Aumenta a altura para o professor marcar com facilidade */
-            td { height: 38px; font-size: 11px; }
-            th { background-color: #eee !important; -webkit-print-color-adjust: exact; }
-
-            .col-nome { width: 30%; }
+            /* Aumenta a altura para facilitar o X da caneta */
+            td { height: 35px; } 
+            th { -webkit-print-color-adjust: exact; }
         }
     </style>
 </head>
 <body>
 
-    <div class="painel-admin">
-        <h2 style="margin-top:0">Painel de Controle de Turmas</h2>
-        <p>Selecione a turma para visualizar o desempenho dos alunos e imprimir a folha de chamada limpa.</p>
-        
-        <select id="select-turmas">
+    <div class="no-print">
+        <h3>Gerador de Folha de Chamada</h3>
+        <p>Selecione a turma abaixo e clique em imprimir:</p>
+        <select id="lista-turmas">
             <option value="">Carregando turmas...</option>
         </select>
-        
-        <button class="btn-imprimir" onclick="window.print()">
-            IMPRIMIR CHAMADA PARA O PROFESSOR
-        </button>
+        <button class="btn-imprimir" onclick="window.print()">IMPRIMIR FOLHA DE FREQUÊNCIA</button>
     </div>
 
-    <div class="area-chamada">
-        <div id="cabecalho-print" style="border: 2px solid #000; padding: 10px; margin-bottom: 10px;">
+    <div id="folha-frequencia" class="print-area">
+        <div class="header-chamada">
             <h2 style="text-align:center; margin: 0; font-size: 18px;">CASA DA MÚSICA - FOLHA DE FREQUÊNCIA</h2>
-            <div id="info-turma" style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 10px; text-transform: uppercase;">
+            <div id="detalhes-turma" class="info-linha">
                 </div>
         </div>
 
         <table>
             <thead>
-                <tr id="linha-dias">
+                <tr id="cabecalho-dias">
                     <th class="col-nome">NOME DO ALUNO</th>
-                    <th class="col-admin">PRES.</th>
-                    <th class="col-admin">FALT.</th>
-                </tr>
+                    </tr>
             </thead>
-            <tbody id="corpo-tabela">
+            <tbody id="corpo-alunos">
                 </tbody>
         </table>
     </div>
 
     <script>
-        // CONFIGURAÇÃO SUPABASE (Suas chaves mantidas conforme solicitado)
-        const URL = 'SUA_URL_AQUI'; 
-        const KEY = 'SUA_KEY_AQUI';
-        const supabase = supabase.createClient(URL, KEY);
+        // 1. DADOS DE CONEXÃO (Não mexer na estrutura, apenas preencher suas chaves)
+        const URL = 'SUA_URL_DO_SUPABASE'; 
+        const KEY = 'SUA_ANON_KEY_DO_SUPABASE';
+        const supabaseClient = supabase.createClient(URL, KEY);
 
-        const select = document.getElementById('select-turmas');
-        const corpo = document.getElementById('corpo-tabela');
-        const info = document.getElementById('info-turma');
-        const linhaDias = document.getElementById('linha-dias');
+        const select = document.getElementById('lista-turmas');
+        const corpoAlunos = document.getElementById('corpo-alunos');
+        const detalhesTurma = document.getElementById('detalhes-turma');
 
-        // 1. Gerar os dias 01 a 31 no cabeçalho
-        const thAdmin = document.querySelectorAll('.col-admin');
+        // 2. Criar as colunas de 01 a 31 no cabeçalho
+        const cabecalhoDias = document.getElementById('cabecalho-dias');
         for (let i = 1; i <= 31; i++) {
             const th = document.createElement('th');
             th.className = 'col-dia';
             th.innerText = i.toString().padStart(2, '0');
-            linhaDias.insertBefore(th, thAdmin[0]);
+            cabecalhoDias.appendChild(th);
         }
 
-        // 2. Carregar Turmas
+        // 3. Buscar turmas e colocar no Select
         async function carregarTurmas() {
-            const { data } = await supabase.from('turmas').select('*').order('professor');
-            select.innerHTML = '<option value="">Selecione a Turma...</option>';
-            data.forEach(t => {
-                const opt = document.createElement('option');
-                opt.value = t.id;
-                opt.innerText = `${t.professor} - ${t.oficina} (${t.horario})`;
-                select.appendChild(opt);
-            });
+            const { data, error } = await supabaseClient
+                .from('turmas')
+                .select('*')
+                .order('professor', { ascending: true });
+
+            if (data) {
+                select.innerHTML = '<option value="">Escolha a Turma...</option>';
+                data.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t.id;
+                    opt.text = `${t.professor} - ${t.oficina} (${t.horario})`;
+                    select.appendChild(opt);
+                });
+            }
         }
 
-        // 3. Atualizar ao selecionar turma
+        // 4. Quando selecionar uma turma, carregar os alunos
         select.addEventListener('change', async (e) => {
-            const tId = e.target.value;
-            if (!tId) return;
+            const turmaId = e.target.value;
+            if (!turmaId) return;
 
-            const { data: turma } = await supabase.from('turmas').select('*').eq('id', tId).single();
-            info.innerHTML = `
+            // Busca detalhes da turma selecionada
+            const { data: turma } = await supabaseClient
+                .from('turmas')
+                .select('*')
+                .eq('id', turmaId)
+                .single();
+
+            // Atualiza o cabeçalho da impressão
+            detalhesTurma.innerHTML = `
                 <span><strong>Professor:</strong> ${turma.professor}</span>
                 <span><strong>Oficina:</strong> ${turma.oficina}</span>
                 <span><strong>Horário:</strong> ${turma.horario}</span>
+                <span><strong>Dias:</strong> ${turma.dias}</span>
             `;
 
-            // Busca alunos e frequencia
-            const { data: alunos } = await supabase
+            // Busca os alunos matriculados (Filtrando por turma_id)
+            const { data: alunos } = await supabaseClient
                 .from('alunos')
-                .select('id, nome_completo, frequencia(status)')
-                .eq('turma_id', tId)
-                .order('nome_completo');
+                .select('nome_completo')
+                .eq('turma_id', turmaId)
+                .order('nome_completo', { ascending: true });
 
-            corpo.innerHTML = '';
-            alunos.forEach(aluno => {
-                const p = aluno.frequencia?.filter(f => f.status === 'P').length || 0;
-                const f = aluno.frequencia?.filter(f => f.status === 'F').length || 0;
+            corpoAlunos.innerHTML = '';
 
+            // Adiciona as linhas dos alunos
+            if (alunos && alunos.length > 0) {
+                alunos.forEach(aluno => {
+                    const tr = document.createElement('tr');
+                    let html = `<td class="col-nome">${aluno.nome_completo}</td>`;
+                    for (let i = 0; i < 31; i++) html += '<td></td>';
+                    tr.innerHTML = html;
+                    corpoAlunos.appendChild(tr);
+                });
+            }
+
+            // Completa a folha com linhas em branco (mínimo 18 linhas no total)
+            const totalLinhas = Math.max(18, (alunos ? alunos.length : 0));
+            for (let i = (alunos ? alunos.length : 0); i < totalLinhas; i++) {
                 const tr = document.createElement('tr');
-                let html = `<td class="col-nome">${aluno.nome_completo}</td>`;
-                for (let i = 0; i < 31; i++) html += '<td></td>'; // Campos vazios para o professor
-                html += `<td class="col-admin"><span class="stats-badge bg-presenca">${p}</span></td>`;
-                html += `<td class="col-admin"><span class="stats-badge bg-falta">${f}</span></td>`;
+                let html = `<td class="col-nome"></td>`;
+                for (let j = 0; j < 31; j++) html += '<td></td>';
                 tr.innerHTML = html;
-                corpo.appendChild(tr);
-            });
-
-            // Linhas extras para a folha impressa não ficar curta
-            for (let i = alunos.length; i < 15; i++) {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td class="col-nome"></td>` + '<td></td>'.repeat(31) + '<td class="col-admin"></td><td class="col-admin"></td>';
-                corpo.appendChild(tr);
+                corpoAlunos.appendChild(tr);
             }
         });
 
+        // Iniciar o sistema
         carregarTurmas();
     </script>
 </body>
