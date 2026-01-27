@@ -3,270 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CASA DA MÚSICA - GESTÃO 2026</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <title>Painel Administrativo - Casa da Música</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; }
         
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .no-print { 
+            background: white; padding: 20px; border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 1100px; margin: 0 auto 20px; 
+        }
+
+        .controles-mes { display: flex; gap: 10px; margin-bottom: 15px; }
+        select, button { padding: 10px; border-radius: 5px; border: 1px solid #ddd; font-size: 14px; }
         
-        /* Reset de Impressão Profissional */
+        .btn-imprimir { background-color: #28a745; color: white; border: none; font-weight: bold; cursor: pointer; flex-grow: 1; }
+
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; background: white; }
+        th, td { border: 1px solid #000; height: 35px; font-size: 11px; text-align: center; }
+        
+        .col-nome { width: 300px; text-align: left !important; padding-left: 8px; font-weight: bold; }
+        .col-dia-aula { width: 45px; } /* Colunas maiores para os dias de aula */
+        
+        .col-admin { width: 60px; background-color: #f8f9fa; font-weight: bold; }
+
         @media print {
-            @page { size: landscape; margin: 1cm; }
-            .no-print { display: none !important; }
-            body { background: white !important; padding: 0 !important; }
-            .folha-container { box-shadow: none !important; border: none !important; width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
-            table { width: 100% !important; border: 1.5pt solid black !important; }
-            th, td { border: 1pt solid black !important; height: 30px !important; color: black !important; }
-            .total-faltas-col { display: none !important; }
-            .status-p, .status-f { color: transparent !important; background: transparent !important; }
-            .input-aluno { font-size: 11pt !important; font-weight: bold !important; color: black !important; }
+            @page { size: A4 landscape; margin: 8mm; }
+            .no-print, .col-admin { display: none !important; }
+            body { background: white; padding: 0; }
+            td { height: 40px; font-size: 12px; }
+            th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; }
         }
-
-        /* Estilização da "Folha" no Sistema */
-        .folha-container {
-            background: white;
-            max-width: 1100px;
-            margin: 2rem auto;
-            padding: 2.5rem;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-            border-radius: 4px;
-            border-top: 8px solid #000;
-        }
-
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        th { background: #f1f5f9; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.05em; padding: 8px 4px; border: 1px solid #cbd5e1; }
-        td { border: 1px solid #cbd5e1; height: 40px; }
-        
-        .input-aluno { 
-            width: 100%; height: 100%; padding: 0 8px; border: none; outline: none; 
-            font-family: 'Roboto Mono', monospace; font-size: 0.85rem; font-weight: 700;
-            text-transform: uppercase; background: transparent;
-        }
-
-        .input-aluno:focus { background: #fefce8; }
-
-        .celula-data { 
-            cursor: pointer; text-align: center; font-weight: 900; font-size: 1rem;
-            transition: all 0.1s ease;
-        }
-
-        .status-p { background-color: #dcfce7; color: #166534; }
-        .status-f { background-color: #fee2e2; color: #991b1b; }
-        
-        .btn-menu {
-            transition: all 0.2s;
-            border: 2px solid #000;
-        }
-        .btn-menu:hover { transform: translateY(-3px); box-shadow: 6px 6px 0px #000; }
     </style>
 </head>
 <body>
-    <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+    <div class="no-print">
+        <h2 style="margin-top:0">Gerador de Chamada Cronológica</h2>
+        <div class="controles-mes">
+            <select id="select-mes">
+                <option value="0">Janeiro</option><option value="1">Fevereiro</option>
+                <option value="2">Março</option><option value="3">Abril</option>
+                <option value="4">Maio</option><option value="5">Junho</option>
+                <option value="6">Julho</option><option value="7">Agosto</option>
+                <option value="8">Setembro</option><option value="9">Outubro</option>
+                <option value="10">Novembro</option><option value="11">Dezembro</option>
+            </select>
+            <select id="select-turmas"><option value="">Carregando turmas...</option></select>
+            <button class="btn-imprimir" onclick="window.print()">IMPRIMIR FOLHA DO MÊS</button>
+        </div>
+    </div>
 
-        const SUPABASE_URL = 'https://wilmewhekkvcocjbydxb.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_mHXaPK-MFZYUggo-qy2soQ_yDDBr1IH';
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    <div class="area-chamada">
+        <div id="cabecalho-print" style="border: 2px solid #000; padding: 10px; margin-bottom: 10px;">
+            <h2 id="titulo-mes" style="text-align:center; margin: 0; font-size: 18px; text-transform: uppercase;">FOLHA DE FREQUÊNCIA</h2>
+            <div id="info-turma" style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 10px; text-transform: uppercase;"></div>
+        </div>
 
-        const App = () => {
-            const [tela, setTela] = useState('menu');
-            const [profSel, setProfSel] = useState("");
-            const [idAtivo, setIdAtivo] = useState(null);
-            const [mes, setMes] = useState(new Date().getMonth());
-            const [turmas, setTurmas] = useState([]);
-            const [alunos, setAlunos] = useState({});
-            const [presencas, setPresencas] = useState({});
-            const [loading, setLoading] = useState(true);
+        <table>
+            <thead>
+                <tr id="linha-dias">
+                    <th class="col-nome">NOME DO ALUNO</th>
+                    <th class="col-admin">PRES.</th>
+                    <th class="col-admin">FALT.</th>
+                </tr>
+            </thead>
+            <tbody id="corpo-tabela"></tbody>
+        </table>
+    </div>
 
-            useEffect(() => { fetchTurmas(); }, []);
-            useEffect(() => { if (idAtivo) fetchDados(); }, [idAtivo, mes]);
+    <script>
+        // Use suas chaves aqui
+        const URL = 'SUA_URL_AQUI'; 
+        const KEY = 'SUA_KEY_AQUI';
+        const supabase = supabase.createClient(URL, KEY);
 
-            async function fetchTurmas() {
-                const { data } = await supabaseClient.from('turmas').select('*').order('horario');
-                if (data) setTurmas(data);
-                setLoading(false);
+        const selTurma = document.getElementById('select-turmas');
+        const selMes = document.getElementById('select-mes');
+        const corpo = document.getElementById('corpo-tabela');
+        const linhaDias = document.getElementById('linha-dias');
+
+        selMes.value = new Date().getMonth();
+
+        async function carregarTurmas() {
+            const { data } = await supabase.from('turmas').select('*').order('professor');
+            selTurma.innerHTML = '<option value="">Selecione a Turma...</option>';
+            data.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.dataset.dias = t.dias;
+                opt.innerText = `${t.professor} - ${t.oficina} (${t.horario})`;
+                selTurma.appendChild(opt);
+            });
+        }
+
+        function obterDiasDeAulaNoMes() {
+            const mes = parseInt(selMes.value);
+            const ano = new Date().getFullYear();
+            const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+            const turmaSelecionada = selTurma.options[selTurma.selectedIndex];
+            
+            // Converte {1,3} para [1,3]
+            const diasAulaPermitidos = turmaSelecionada.dataset.dias ? 
+                JSON.parse(turmaSelecionada.dataset.dias.replace('{','[').replace('}',']')) : [];
+
+            const datasEncontradas = [];
+            for (let i = 1; i <= ultimoDia; i++) {
+                const dataRef = new Date(ano, mes, i);
+                if (diasAulaPermitidos.includes(dataRef.getDay())) {
+                    datasEncontradas.push({
+                        dia: i.toString().padStart(2, '0'),
+                        labelSemana: ['DOM','SEG','TER','QUA','QUI','SEX','SAB'][dataRef.getDay()]
+                    });
+                }
             }
+            return datasEncontradas;
+        }
 
-            async function fetchDados() {
-                const curso = turmas.find(t => t.id === idAtivo);
-                const limite = curso?.vagas || 15;
-                const { data: alData } = await supabaseClient.from('alunos').select('*').eq('turma_id', idAtivo).eq('mes', mes);
-                const { data: preData } = await supabaseClient.from('frequencia').select('*').eq('turma_id', idAtivo).eq('mes', mes);
+        async function atualizarTabela() {
+            const tId = selTurma.value;
+            if (!tId) return;
+
+            const diasDeAula = obterDiasDeAulaNoMes();
+            const { data: turma } = await supabase.from('turmas').select('*').eq('id', tId).single();
+            const ano = new Date().getFullYear();
+
+            // Atualiza Título e Cabeçalho
+            document.getElementById('titulo-mes').innerText = `FOLHA DE FREQUÊNCIA - ${selMes.options[selMes.selectedIndex].text} / ${ano}`;
+            document.getElementById('info-turma').innerHTML = `<span><strong>Prof:</strong> ${turma.professor}</span><span><strong>Oficina:</strong> ${turma.oficina}</span><span><strong>Horário:</strong> ${turma.horario}</span>`;
+
+            // Limpa e gera novas colunas de dias
+            document.querySelectorAll('.col-gerada').forEach(el => el.remove());
+            const thAdmin = document.querySelectorAll('.col-admin');
+            diasDeAula.forEach(d => {
+                const th = document.createElement('th');
+                th.className = 'col-gerada col-dia-aula';
+                th.innerHTML = `${d.dia}<br><small>${d.labelSemana}</small>`;
+                linhaDias.insertBefore(th, thAdmin[0]);
+            });
+
+            // Busca Alunos
+            const { data: alunos } = await supabase.from('alunos').select('id, nome_completo, frequencia(status)').eq('turma_id', tId).order('nome_completo');
+
+            corpo.innerHTML = '';
+            alunos.forEach(aluno => {
+                const p = aluno.frequencia?.filter(f => f.status === 'P').length || 0;
+                const f = aluno.frequencia?.filter(f => f.status === 'F').length || 0;
+
+                const tr = document.createElement('tr');
+                let html = `<td class="col-nome">${aluno.nome_completo}</td>`;
                 
-                const gridAl = Array(limite).fill("");
-                alData?.forEach(al => { if(al.posicao < limite) gridAl[al.posicao] = al.nome; });
-                setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: gridAl } }));
-
-                const gridPre = {};
-                preData?.forEach(p => {
-                    if(!gridPre[p.aluno_posicao]) gridPre[p.aluno_posicao] = {};
-                    gridPre[p.aluno_posicao][p.data_aula] = p.status;
+                // Cria apenas os quadradinhos dos dias de aula
+                diasDeAula.forEach(() => {
+                    html += `<td></td>`;
                 });
-                setPresencas(gridPre);
+                
+                html += `<td class="col-admin">${p}</td><td class="col-admin">${f}</td>`;
+                tr.innerHTML = html;
+                corpo.appendChild(tr);
+            });
+
+            // Linhas vazias para preencher a folha
+            for (let i = (alunos ? alunos.length : 0); i < 18; i++) {
+                const tr = document.createElement('tr');
+                let html = `<td class="col-nome"></td>` + `<td></td>`.repeat(diasDeAula.length) + `<td class="col-admin"></td><td class="col-admin"></td>`;
+                tr.innerHTML = html;
+                corpo.appendChild(tr);
             }
+        }
 
-            const salvarAluno = async (index, nome) => {
-                const nomeFinal = nome.toUpperCase().trim();
-                await supabaseClient.from('alunos').upsert({ turma_id: idAtivo, nome: nomeFinal, mes: mes, posicao: index }, { onConflict: 'turma_id, mes, posicao' });
-            };
-
-            const alternarPresenca = async (alunoPos, dataAula) => {
-                const atual = presencas[alunoPos]?.[dataAula] || "";
-                let novoStatus = (atual === "") ? "P" : (atual === "P") ? "F" : "";
-                setPresencas(prev => ({ ...prev, [alunoPos]: { ...prev[alunoPos], [dataAula]: novoStatus } }));
-                if (novoStatus === "") {
-                    await supabaseClient.from('frequencia').delete().match({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula });
-                } else {
-                    await supabaseClient.from('frequencia').upsert({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula, status: novoStatus });
-                }
-            };
-
-            const getDatasDoMes = (diasSemana) => {
-                const datas = []; const ano = 2026;
-                const ultimoDia = new Date(ano, mes + 1, 0).getDate();
-                for (let d = 1; d <= ultimoDia; d++) {
-                    const dataProd = new Date(ano, mes, d);
-                    if (diasSemana.includes(dataProd.getDay())) {
-                        datas.push(`${d < 10 ? '0'+d : d}/${mes+1 < 10 ? '0'+(mes+1) : mes+1}`);
-                    }
-                }
-                return datas.slice(0, 10);
-            };
-
-            if (loading) return <div className="h-screen flex items-center justify-center font-black animate-pulse">CARREGANDO SISTEMA...</div>;
-
-            if (tela === 'menu') return (
-                <div className="min-h-screen p-8">
-                    <div className="max-w-6xl mx-auto">
-                        <h1 className="text-4xl font-black mb-12 border-l-8 border-black pl-6">CASA DA MÚSICA <span className="text-gray-400">2026</span></h1>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                            {["JOÃO PAULO", "MICHEL", "ESTHER", "BECKA/RODRIGO", "CARLOS", "MARCELO CALAZANS", "SAMUEL", "FELIPE"].map(p => (
-                                <button key={p} onClick={() => {setProfSel(p); setTela('lista');}} className="btn-menu bg-white p-8 font-bold text-lg uppercase tracking-widest">{p}</button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            );
-
-            if (tela === 'lista') return (
-                <div className="min-h-screen p-8 max-w-4xl mx-auto">
-                    <button onClick={() => setTela('menu')} className="text-sm font-bold uppercase tracking-tighter mb-8 hover:underline">← Voltar aos Professores</button>
-                    <h2 className="text-5xl font-black mb-12 italic uppercase">{profSel}</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {[1, 2].map(dKey => (
-                            <div key={dKey}>
-                                <h3 className="text-xs font-black bg-black text-white p-2 mb-4 text-center tracking-widest uppercase">{dKey === 1 ? "Segundas e Quartas" : "Terças e Quintas"}</h3>
-                                <div className="space-y-2">
-                                    {turmas.filter(c => c.professor === profSel && (dKey === 1 ? c.dias.includes(1) : c.dias.includes(2))).map(c => (
-                                        <div key={c.id} onClick={() => {setIdAtivo(c.id); setTela('chamada');}} className="bg-white border-2 border-gray-200 p-4 cursor-pointer hover:border-black transition-all flex justify-between items-center group">
-                                            <span className="font-bold text-sm group-hover:scale-105 transition-transform">{c.horario}</span>
-                                            <span className="text-[10px] font-black text-gray-400 uppercase">{c.oficina}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
-
-            const cursoAtivo = turmas.find(c => c.id === idAtivo);
-            if (!cursoAtivo) return null;
-            const numVagas = cursoAtivo.vagas || 15;
-            const datasAulas = getDatasDoMes(cursoAtivo.dias);
-            const nomesAtuais = (alunos[idAtivo] && alunos[idAtivo][mes]) || Array(numVagas).fill("");
-
-            return (
-                <div className="min-h-screen pb-20">
-                    <nav className="no-print bg-white border-b border-gray-200 p-4 sticky top-0 z-50 flex justify-between items-center px-8 shadow-sm">
-                        <div className="flex items-center gap-4">
-                            <button onClick={()=>setTela('lista')} className="p-2 hover:bg-gray-100 rounded-full">←</button>
-                            <span className="font-black uppercase text-xs tracking-widest">{cursoAtivo.professor} | {cursoAtivo.horario}</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <select className="bg-gray-100 font-bold text-xs p-2 rounded" value={mes} onChange={e => setMes(Number(e.target.value))}>
-                                {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"].map((m,i)=><option key={i} value={i}>{m.toUpperCase()}</option>)}
-                            </select>
-                            <button onClick={()=>window.print()} className="bg-black text-white px-6 py-2 text-xs font-black uppercase tracking-widest hover:bg-gray-800">Imprimir Chamada</button>
-                        </div>
-                    </nav>
-
-                    <div className="folha-container">
-                        <header className="flex justify-between items-start mb-10 border-b-2 border-black pb-6">
-                            <div>
-                                <h1 className="text-4xl font-black uppercase mb-1 leading-none tracking-tighter">{cursoAtivo.professor}</h1>
-                                <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">{cursoAtivo.oficina} — {cursoAtivo.horario}</p>
-                            </div>
-                            <div className="text-right">
-                                <span className="block text-[10px] font-black text-gray-400 uppercase">Mês de Referência</span>
-                                <span className="text-3xl font-black uppercase">{["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][mes]}</span>
-                            </div>
-                        </header>
-
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th className="w-8">Nº</th>
-                                    <th className="w-64 text-left pl-4">Nome do Aluno</th>
-                                    {datasAulas.map(dt => <th key={dt} className="w-12 text-center">{dt}</th>)}
-                                    {[...Array(10 - datasAulas.length)].map((_, i) => <th key={i} className="w-12"></th>)}
-                                    <th className="w-16 total-faltas-col">Faltas</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {nomesAtuais.map((nome, i) => {
-                                    const faltas = Object.values(presencas[i] || {}).filter(v => v === "F").length;
-                                    return (
-                                        <tr key={i}>
-                                            <td className="text-center text-[10px] font-bold text-gray-400 border-r-2 border-gray-100">{i+1}</td>
-                                            <td>
-                                                <input 
-                                                    className={`input-aluno ${faltas >= 4 ? 'text-red-600' : ''}`} 
-                                                    defaultValue={nome} 
-                                                    onBlur={(e) => salvarAluno(i, e.target.value)} 
-                                                    placeholder="..."
-                                                />
-                                            </td>
-                                            {datasAulas.map(dt => {
-                                                const status = presencas[i]?.[dt] || "";
-                                                return (
-                                                    <td key={dt} 
-                                                        onClick={() => alternarPresenca(i, dt)} 
-                                                        className={`celula-data ${status === 'P' ? 'status-p' : status === 'F' ? 'status-f' : ''}`}>
-                                                        {status}
-                                                    </td>
-                                                );
-                                            })}
-                                            {[...Array(10 - datasAulas.length)].map((_, di) => <td key={di}></td>)}
-                                            <td className={`text-center font-black total-faltas-col ${faltas >= 4 ? 'bg-red-500 text-white' : 'bg-gray-50 text-gray-400'}`}>
-                                                {faltas > 0 ? faltas : ""}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-
-                        <footer className="mt-12 flex justify-between items-center text-[9px] font-bold uppercase tracking-widest text-gray-400 border-t pt-4">
-                            <span>Casa da Música de Teixeira de Freitas — Gestão Acadêmica</span>
-                            <div className="flex gap-20">
-                                <span className="border-t border-black pt-1 w-48 text-center">Assinatura do Professor</span>
-                            </div>
-                        </footer>
-                    </div>
-                </div>
-            );
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        selTurma.addEventListener('change', atualizarTabela);
+        selMes.addEventListener('change', atualizarTabela);
+        carregarTurmas();
     </script>
 </body>
 </html>
