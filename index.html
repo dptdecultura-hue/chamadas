@@ -68,12 +68,12 @@
             }
 
             async function fetchDados() {
-                const { data: alData } = await supabaseClient.from('alunos').select('*').eq('turma_id', idAtivo).eq('mes', mes);
+                const { data: alData } = await supabaseClient.from('alunos').select('*').eq('turma_id', idAtivo).eq('mes', mes).order('posicao', { ascending: true });
                 const { data: preData } = await supabaseClient.from('frequencia').select('*').eq('turma_id', idAtivo).eq('mes', mes);
                 
-                const gridAl = Array(15).fill("");
-                alData?.forEach(al => { if(al.posicao < 15) gridAl[al.posicao] = al.nome; });
-                setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: gridAl } }));
+                // Se não houver alunos, começa com pelo menos 1 linha vazia
+                const listaAlunos = alData && alData.length > 0 ? alData.map(a => a.nome) : [""];
+                setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: listaAlunos } }));
 
                 const gridPre = {};
                 preData?.forEach(p => {
@@ -85,7 +85,15 @@
 
             const salvarAluno = async (index, nome) => {
                 const nomeFinal = nome.toUpperCase().trim();
+                if(!nomeFinal) return;
                 await supabaseClient.from('alunos').upsert({ turma_id: idAtivo, nome: nomeFinal, mes: mes, posicao: index }, { onConflict: 'turma_id, mes, posicao' });
+            };
+
+            const adicionarLinha = () => {
+                setAlunos(prev => {
+                    const currentList = prev[idAtivo][mes];
+                    return { ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: [...currentList, ""] } };
+                });
             };
 
             const alternarPresenca = async (alunoPos, dataAula) => {
@@ -161,7 +169,7 @@
             const cursoAtivo = turmas.find(c => c.id === idAtivo);
             if (!cursoAtivo) return null;
             const datasAulas = getDatasDoMes(cursoAtivo.dias);
-            const nomesAtuais = (alunos[idAtivo] && alunos[idAtivo][mes]) || Array(15).fill("");
+            const nomesAtuais = (alunos[idAtivo] && alunos[idAtivo][mes]) || [""];
 
             return (
                 <div className="min-h-screen pb-20">
@@ -210,7 +218,7 @@
                                                     className={`input-aluno ${faltas >= 3 ? 'text-red-600' : ''}`} 
                                                     defaultValue={nome} 
                                                     onBlur={(e) => salvarAluno(i, e.target.value)} 
-                                                    placeholder="..."
+                                                    placeholder="Digite o nome..."
                                                 />
                                             </td>
                                             {datasAulas.map(dt => {
@@ -231,6 +239,10 @@
                                 })}
                             </tbody>
                         </table>
+
+                        <button onClick={adicionarLinha} className="no-print mt-4 text-[10px] font-black uppercase bg-gray-100 px-4 py-2 border border-black hover:bg-black hover:text-white transition-colors">
+                            + Adicionar Aluno nesta Turma
+                        </button>
 
                         <footer className="mt-12 flex justify-between items-center text-[9px] font-bold uppercase tracking-widest text-gray-400 border-t pt-4">
                             <span>Casa da Cultura Jardim Europa — Gestão 2026</span>
