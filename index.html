@@ -3,36 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CASA DA CULTURA - GESTÃO 2026</title>
+    <title>CASA DA CULTURA - JARDIM EUROPA</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
+        
+        :root {
+            --azul-escuro: #004a8d;
+            --azul-claro: #00a1e4;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f1f5f9; 
+            color: #1e293b; 
+        }
+
+        /* Estilo para Impressão */
         @media print {
             @page { size: landscape; margin: 1cm; }
             .no-print { display: none !important; }
-            body { background: white !important; padding: 0 !important; }
-            .folha-container { box-shadow: none !important; border: none !important; width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
-            table { width: 100% !important; border: 1.5pt solid black !important; }
-            th, td { border: 1pt solid black !important; height: 30px !important; color: black !important; }
-            .total-faltas-col { display: none !important; }
-            .status-p, .status-f { color: black !important; background: transparent !important; }
-            .input-aluno { font-size: 11pt !important; font-weight: bold !important; color: black !important; }
+            body { background: white !important; }
+            .folha-container { 
+                box-shadow: none !important; 
+                border: none !important; 
+                width: 100% !important; 
+                margin: 0 !important; 
+                padding: 0 !important; 
+            }
+            .border-topo { border-top: 4px solid var(--azul-escuro) !important; }
+            th { background: #f8fafc !important; color: black !important; }
+            .status-p, .status-f { background: transparent !important; color: black !important; border: 1px solid #ccc !important; }
         }
-        .folha-container { background: white; max-width: 1100px; margin: 2rem auto; padding: 2.5rem; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); border-radius: 4px; border-top: 8px solid #000; }
+
+        .folha-container { 
+            background: white; 
+            max-width: 1150px; 
+            margin: 1.5rem auto; 
+            padding: 2rem; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
+            border-radius: 8px; 
+            border-top: 10px solid var(--azul-escuro); 
+        }
+
+        .btn-principal {
+            background-color: var(--azul-escuro);
+            transition: all 0.3s;
+            color: white;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .btn-principal:hover {
+            background-color: var(--azul-claro);
+            transform: translateY(-2px);
+        }
+
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        th { background: #f1f5f9; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.05em; padding: 8px 4px; border: 1px solid #cbd5e1; }
-        td { border: 1px solid #cbd5e1; height: 40px; }
-        .input-aluno { width: 100%; height: 100%; padding: 0 8px; border: none; outline: none; font-family: 'Roboto Mono', monospace; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; background: transparent; }
-        .celula-data { cursor: pointer; text-align: center; font-weight: 900; font-size: 1rem; }
+        th { 
+            background: #f8fafc; 
+            color: var(--azul-escuro); 
+            font-size: 0.65rem; 
+            font-weight: 800; 
+            padding: 10px 4px; 
+            border: 1px solid #cbd5e1; 
+        }
+        td { border: 1px solid #cbd5e1; height: 38px; }
+        
+        .input-aluno { 
+            width: 100%; height: 100%; padding: 0 10px; border: none; outline: none; 
+            font-size: 0.85rem; font-weight: 600; text-transform: uppercase; 
+            background: transparent; color: #334155;
+        }
+
+        .celula-data { cursor: pointer; text-align: center; font-weight: 900; font-size: 1.1rem; }
         .status-p { background-color: #dcfce7; color: #166534; }
         .status-f { background-color: #fee2e2; color: #991b1b; }
-        .btn-menu { transition: all 0.2s; border: 2px solid #000; box-shadow: 4px 4px 0px #000; }
-        .btn-menu:hover { transform: translateY(-2px); box-shadow: 6px 6px 0px #000; }
+
+        .logo-img { height: 60px; object-fit: contain; }
     </style>
 </head>
 <body>
@@ -41,9 +94,13 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
+        // Configuração Supabase
         const SUPABASE_URL = 'https://wilmewhekkvcocjbydxb.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_mHXaPK-MFZYUggo-qy2soQ_yDDBr1IH';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // URL da Logo (Baseado na imagem enviada)
+        const LOGO_URL = "https://i.ibb.co/Xf8zP8Y/logo-teixeira.png"; // Exemplo de link direto da logo
 
         const App = () => {
             const [tela, setTela] = useState('menu');
@@ -71,7 +128,6 @@
                 const { data: alData } = await supabaseClient.from('alunos').select('*').eq('turma_id', idAtivo).eq('mes', mes).order('posicao', { ascending: true });
                 const { data: preData } = await supabaseClient.from('frequencia').select('*').eq('turma_id', idAtivo).eq('mes', mes);
                 
-                // Se não houver alunos, começa com pelo menos 1 linha vazia
                 const listaAlunos = alData && alData.length > 0 ? alData.map(a => a.nome) : [""];
                 setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: listaAlunos } }));
 
@@ -123,39 +179,50 @@
                 return datas.slice(0, 10);
             };
 
-            if (loading) return <div className="h-screen flex items-center justify-center font-black animate-pulse">CARREGANDO SISTEMA...</div>;
-
+            // TELA INICIAL
             if (tela === 'menu') return (
-                <div className="min-h-screen p-8">
-                    <div className="max-w-6xl mx-auto">
-                        <h1 className="text-4xl font-black mb-12 border-l-8 border-black pl-6 uppercase">Casa da Cultura <span className="text-gray-400">Jardim Europa</span></h1>
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="min-h-screen p-6 md:p-12">
+                    <div className="max-w-5xl mx-auto text-center">
+                        <img src="https://i.postimg.cc/85M6Xm34/logo-cultura.png" alt="Logo" className="mx-auto mb-8 h-24" />
+                        <h1 className="text-2xl font-black text-[#004a8d] uppercase tracking-tighter mb-12">Portal de Frequência — Jardim Europa</h1>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {[...new Set(turmas.map(t => t.professor))].sort().map(p => (
-                                <button key={p} onClick={() => {setProfSel(p); setTela('lista');}} className="btn-menu bg-white p-8 font-black text-sm uppercase tracking-widest">{p}</button>
+                                <button key={p} onClick={() => {setProfSel(p); setTela('lista');}} 
+                                    className="bg-white border-b-4 border-[#004a8d] p-6 rounded-lg shadow-sm hover:shadow-md transition-all font-bold text-[#004a8d] uppercase text-sm">
+                                    {p}
+                                </button>
                             ))}
                         </div>
                     </div>
                 </div>
             );
 
+            // LISTA DE HORÁRIOS
             if (tela === 'lista') return (
-                <div className="min-h-screen p-8 max-w-4xl mx-auto">
-                    <button onClick={() => setTela('menu')} className="text-xs font-black uppercase mb-8 hover:underline">← Voltar</button>
-                    <h2 className="text-5xl font-black mb-12 italic uppercase border-b-4 border-black pb-2">{profSel}</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="min-h-screen p-6 max-w-4xl mx-auto">
+                    <button onClick={() => setTela('menu')} className="text-xs font-bold text-[#00a1e4] uppercase mb-6 flex items-center gap-2">
+                        <span>←</span> Voltar ao Início
+                    </button>
+                    <div className="flex items-center gap-4 mb-10">
+                        <div className="h-12 w-2 bg-[#004a8d]"></div>
+                        <h2 className="text-4xl font-black text-[#1e293b] uppercase italic">{profSel}</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {[1, 2].map(dKey => {
                             const filtradas = turmas.filter(c => c.professor === profSel && String(c.dias).includes(String(dKey)));
                             if (filtradas.length === 0) return null;
                             return (
-                                <div key={dKey}>
-                                    <h3 className="text-xs font-black bg-black text-white p-2 mb-4 text-center uppercase tracking-tighter">
+                                <div key={dKey} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                    <h3 className="text-[10px] font-black bg-[#004a8d] text-white p-3 text-center uppercase tracking-widest">
                                         {dKey === 1 ? "Segundas e Quartas" : "Terças e Quintas"}
                                     </h3>
-                                    <div className="space-y-2">
+                                    <div className="p-4 space-y-3">
                                         {filtradas.map(c => (
-                                            <div key={c.id} onClick={() => {setIdAtivo(c.id); setTela('chamada');}} className="bg-white border-2 border-gray-200 p-4 cursor-pointer hover:border-black transition-all flex justify-between items-center group shadow-sm">
-                                                <span className="font-black text-lg group-hover:scale-105 transition-transform">{c.horario}</span>
-                                                <span className="text-[10px] font-black text-gray-400 uppercase italic">{c.oficina}</span>
+                                            <div key={c.id} onClick={() => {setIdAtivo(c.id); setTela('chamada');}} 
+                                                className="flex justify-between items-center p-4 rounded-lg border border-slate-100 hover:border-[#00a1e4] hover:bg-slate-50 cursor-pointer transition-all group">
+                                                <span className="font-black text-xl text-[#004a8d]">{c.horario}</span>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase italic group-hover:text-[#00a1e4]">{c.oficina}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -171,39 +238,60 @@
             const datasAulas = getDatasDoMes(cursoAtivo.dias);
             const nomesAtuais = (alunos[idAtivo] && alunos[idAtivo][mes]) || [""];
 
+            // TELA DE CHAMADA (FOLHA)
             return (
                 <div className="min-h-screen pb-20">
-                    <nav className="no-print bg-white border-b p-4 sticky top-0 z-50 flex justify-between items-center px-8 shadow-sm">
+                    <nav className="no-print bg-white border-b border-slate-200 p-4 sticky top-0 z-50 flex justify-between items-center px-8 shadow-sm">
                         <div className="flex items-center gap-4">
-                            <button onClick={()=>setTela('lista')} className="p-2 hover:bg-gray-100 rounded-full font-bold">←</button>
-                            <span className="font-black uppercase text-xs tracking-widest">{cursoAtivo.professor} | {cursoAtivo.horario}</span>
+                            <button onClick={()=>setTela('lista')} className="p-2 hover:bg-slate-100 rounded-full text-[#004a8d]">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 256 256"><path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z"></path></svg>
+                            </button>
+                            <div className="leading-tight">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Professor(a)</p>
+                                <p className="font-black text-sm text-[#004a8d] uppercase">{cursoAtivo.professor}</p>
+                            </div>
                         </div>
                         <div className="flex items-center gap-4">
-                            <select className="bg-gray-100 font-bold text-xs p-2 rounded border-2 border-black" value={mes} onChange={e => setMes(Number(e.target.value))}>
+                            <select className="bg-slate-50 font-bold text-xs p-2.5 rounded-lg border border-slate-300 text-[#004a8d] outline-none focus:ring-2 focus:ring-[#00a1e4]" value={mes} onChange={e => setMes(Number(e.target.value))}>
                                 {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"].map((m,i)=><option key={i} value={i}>{m.toUpperCase()}</option>)}
                             </select>
-                            <button onClick={()=>window.print()} className="bg-black text-white px-6 py-2 text-xs font-black uppercase hover:bg-gray-800 shadow-[4px_4px_0px_#ccc]">Imprimir</button>
+                            <button onClick={()=>window.print()} className="bg-[#004a8d] text-white px-8 py-2.5 rounded-lg text-xs font-black uppercase hover:bg-[#003666] shadow-lg shadow-blue-900/20 transition-all">Imprimir Folha</button>
                         </div>
                     </nav>
 
-                    <div className="folha-container">
-                        <header className="flex justify-between items-start mb-8 border-b-2 border-black pb-6">
-                            <div>
-                                <h1 className="text-5xl font-black uppercase mb-1 leading-none tracking-tighter italic">{cursoAtivo.professor}</h1>
-                                <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">{cursoAtivo.oficina} — {cursoAtivo.horario}</p>
+                    <div className="folha-container border-topo">
+                        <header className="flex justify-between items-center mb-10 border-b-2 border-slate-100 pb-6">
+                            <img src="https://i.postimg.cc/85M6Xm34/logo-cultura.png" alt="Prefeitura" className="logo-img" />
+                            <div className="text-center">
+                                <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-1">Folha de Frequência</h2>
+                                <h1 className="text-3xl font-black text-[#004a8d] uppercase italic">Casa da Cultura</h1>
+                                <p className="text-[10px] font-bold text-slate-500 uppercase">Unidade Jardim Europa — 2026</p>
                             </div>
-                            <div className="text-right">
-                                <span className="block text-[10px] font-black text-gray-400 uppercase">Frequência 2026</span>
-                                <span className="text-4xl font-black uppercase italic">{["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][mes]}</span>
+                            <div className="text-right border-l-2 border-slate-100 pl-6">
+                                <span className="block text-[10px] font-black text-slate-400 uppercase mb-1">Período Selecionado</span>
+                                <span className="text-3xl font-black text-[#00a1e4] uppercase italic leading-none">
+                                    {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][mes]}
+                                </span>
                             </div>
                         </header>
+
+                        <div className="mb-6 grid grid-cols-2 gap-8 no-print md:flex">
+                             <div className="bg-slate-50 p-3 rounded-md border border-slate-200 flex-1">
+                                <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Oficina</p>
+                                <p className="text-sm font-black text-[#004a8d] uppercase">{cursoAtivo.oficina}</p>
+                             </div>
+                             <div className="bg-slate-50 p-3 rounded-md border border-slate-200 flex-1">
+                                <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Horário</p>
+                                <p className="text-sm font-black text-[#004a8d] uppercase">{cursoAtivo.horario}</p>
+                             </div>
+                        </div>
 
                         <table>
                             <thead>
                                 <tr>
-                                    <th className="w-8">Nº</th>
-                                    <th className="w-64 text-left pl-4">Nome do Aluno</th>
-                                    {datasAulas.map(dt => <th key={dt} className="text-center text-[10px]">{dt}</th>)}
+                                    <th className="w-10">Nº</th>
+                                    <th className="w-72 text-left pl-4 italic">Nome Completo do Aluno</th>
+                                    {datasAulas.map(dt => <th key={dt} className="text-center">{dt}</th>)}
                                     <th className="w-16 total-faltas-col">Faltas</th>
                                 </tr>
                             </thead>
@@ -211,27 +299,20 @@
                                 {nomesAtuais.map((nome, i) => {
                                     const faltas = Object.values(presencas[i] || {}).filter(v => v === "F").length;
                                     return (
-                                        <tr key={i}>
-                                            <td className="text-center text-[10px] font-bold text-gray-400">{i+1}</td>
+                                        <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                            <td className="text-center text-[10px] font-bold text-slate-300">{i+1}</td>
                                             <td>
-                                                <input 
-                                                    className={`input-aluno ${faltas >= 3 ? 'text-red-600' : ''}`} 
-                                                    defaultValue={nome} 
-                                                    onBlur={(e) => salvarAluno(i, e.target.value)} 
-                                                    placeholder="Digite o nome..."
-                                                />
+                                                <input className={`input-aluno ${faltas >= 3 ? 'text-red-600 font-black' : ''}`} defaultValue={nome} onBlur={(e) => salvarAluno(i, e.target.value)} placeholder="Clique para digitar o nome..." />
                                             </td>
                                             {datasAulas.map(dt => {
                                                 const status = presencas[i]?.[dt] || "";
                                                 return (
-                                                    <td key={dt} 
-                                                        onClick={() => alternarPresenca(i, dt)} 
-                                                        className={`celula-data ${status === 'P' ? 'status-p' : status === 'F' ? 'status-f' : ''}`}>
+                                                    <td key={dt} onClick={() => alternarPresenca(i, dt)} className={`celula-data ${status === 'P' ? 'status-p' : status === 'F' ? 'status-f' : ''}`}>
                                                         {status}
                                                     </td>
                                                 );
                                             })}
-                                            <td className={`text-center font-black total-faltas-col ${faltas >= 3 ? 'bg-red-100 text-red-600' : 'bg-gray-50 text-gray-400'}`}>
+                                            <td className={`text-center font-black total-faltas-col ${faltas >= 3 ? 'bg-red-50 text-red-600' : 'text-slate-300 text-xs'}`}>
                                                 {faltas > 0 ? faltas : ""}
                                             </td>
                                         </tr>
@@ -240,14 +321,23 @@
                             </tbody>
                         </table>
 
-                        <button onClick={adicionarLinha} className="no-print mt-4 text-[10px] font-black uppercase bg-gray-100 px-4 py-2 border border-black hover:bg-black hover:text-white transition-colors">
-                            + Adicionar Aluno nesta Turma
-                        </button>
+                        <div className="flex justify-between items-center mt-6">
+                            <button onClick={adicionarLinha} className="no-print flex items-center gap-2 text-[10px] font-black uppercase text-[#00a1e4] hover:text-[#004a8d] transition-colors">
+                                <span className="text-lg">+</span> Adicionar Novo Aluno nesta Turma
+                            </button>
+                        </div>
 
-                        <footer className="mt-12 flex justify-between items-center text-[9px] font-bold uppercase tracking-widest text-gray-400 border-t pt-4">
-                            <span>Casa da Cultura Jardim Europa — Gestão 2026</span>
-                            <div className="flex gap-20">
-                                <span className="border-t border-black pt-1 w-48 text-center uppercase">Assinatura do Professor</span>
+                        <footer className="mt-16 flex justify-between items-end border-t border-slate-100 pt-8">
+                            <div className="text-[9px] font-bold text-slate-400 uppercase leading-relaxed">
+                                <p>Secretaria Municipal de Cultura e Turismo</p>
+                                <p>Teixeira de Freitas — Bahia</p>
+                            </div>
+                            <div className="flex flex-col items-center gap-2">
+                                <div className="w-64 border-t-2 border-[#004a8d]"></div>
+                                <span className="text-[10px] font-black text-[#004a8d] uppercase">Assinatura do Professor</span>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[10px] font-black text-[#004a8d] uppercase italic">Gestão 2026</p>
                             </div>
                         </footer>
                     </div>
