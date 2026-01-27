@@ -61,7 +61,6 @@
             async function fetchTurmas() {
                 const { data } = await supabaseClient.from('turmas').select('*');
                 if (data) {
-                    // Ordena por horário (08h, 09h...)
                     const ordenadas = data.sort((a, b) => a.horario.localeCompare(b.horario));
                     setTurmas(ordenadas);
                 }
@@ -92,12 +91,10 @@
             const alternarPresenca = async (alunoPos, dataAula) => {
                 const atual = presencas[alunoPos]?.[dataAula] || "";
                 let novoStatus = (atual === "") ? "P" : (atual === "P") ? "F" : "";
-                
                 setPresencas(prev => ({
                     ...prev,
                     [alunoPos]: { ...(prev[alunoPos] || {}), [dataAula]: novoStatus }
                 }));
-
                 if (novoStatus === "") {
                     await supabaseClient.from('frequencia').delete().match({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula });
                 } else {
@@ -107,7 +104,6 @@
 
             const getDatasDoMes = (diasSemanaInput) => {
                 const datas = [];
-                // Converte dias para array de números independente do formato do banco
                 const diasSemana = String(diasSemanaInput).replace(/[^0-9,]/g, '').split(',').map(Number);
                 const ultimoDia = new Date(2026, mes + 1, 0).getDate();
                 for (let d = 1; d <= ultimoDia; d++) {
@@ -199,8 +195,8 @@
                                 <tr>
                                     <th className="w-8">Nº</th>
                                     <th className="w-64 text-left pl-4">Nome do Aluno</th>
-                                    {datasAulas.map(dt => <th key={dt} className="w-12 text-center text-[10px]">{dt}</th>)}
-                                    {[...Array(10 - datasAulas.length)].map((_, i) => <th key={i} className="w-12"></th>)}
+                                    {/* AJUSTE: Removemos as colunas vazias extras */}
+                                    {datasAulas.map(dt => <th key={dt} className="text-center text-[10px]">{dt}</th>)}
                                     <th className="w-16 total-faltas-col">Faltas</th>
                                 </tr>
                             </thead>
@@ -218,6 +214,7 @@
                                                     placeholder="..."
                                                 />
                                             </td>
+                                            {/* AJUSTE: Apenas as colunas com datas reais */}
                                             {datasAulas.map(dt => {
                                                 const status = presencas[i]?.[dt] || "";
                                                 return (
@@ -228,7 +225,6 @@
                                                     </td>
                                                 );
                                             })}
-                                            {[...Array(10 - datasAulas.length)].map((_, di) => <td key={di}></td>)}
                                             <td className={`text-center font-black total-faltas-col ${faltas >= 3 ? 'bg-red-100 text-red-600' : 'bg-gray-50 text-gray-400'}`}>
                                                 {faltas > 0 ? faltas : ""}
                                             </td>
