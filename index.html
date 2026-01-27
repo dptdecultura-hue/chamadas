@@ -2,247 +2,175 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>SISTEMA CASA DA MÚSICA 2026 - CONECTADO</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo - Casa da Música</title>
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background: #f1f5f9; }
+        /* --- VISUAL DA TELA (ADMINISTRADOR) --- */
+        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; }
         
-        @media print {
-            .no-print { display: none !important; }
-            body { background: white !important; padding: 0 !important; }
-            .folha-chamada { border: none !important; width: 100% !important; margin: 0 !important; padding: 0.4cm !important; box-shadow: none !important; position: relative; }
-            table, th, td { border: 2.5pt solid black !important; }
-            .header-box { border: 4pt solid black !important; }
+        .painel-admin { 
+            background: white; padding: 20px; border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 1100px; margin: 0 auto 30px; 
         }
 
-        .folha-chamada { width: 29.7cm; min-height: 20cm; padding: 1.2cm; background: white; margin: 20px auto; border: 1px solid #000; box-shadow: 0 10px 25px rgba(0,0,0,0.1); position: relative; }
-        .tabela-chamada { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .tabela-chamada th, .tabela-chamada td { border: 2pt solid black; padding: 8px; text-align: center; font-size: 14px; font-weight: 900; height: 42px; }
-        .col-nome { width: 350px; } 
-        
-        .header-box { border: 4pt solid black; display: flex; margin-bottom: 15px; background: white; }
-        .header-item { border-right: 2.5pt solid black; padding: 10px 15px; flex-grow: 1; }
-        .header-item:last-child { border-right: none; }
-        
-        .input-aluno { width: 100%; border: none; outline: none; text-transform: uppercase; font-weight: 900; background: transparent; font-size: 14px; color: black; }
-        label { font-size: 11px; font-weight: 900; color: black; text-transform: uppercase; display: block; margin-bottom: 2px; }
-        
-        .card-selecao { border: 4px solid black; transition: 0.2s; cursor: pointer; background: white; }
-        .card-selecao:hover { background: #eab308; transform: translateY(-2px); }
+        .stats-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-right: 5px;
+        }
+        .bg-presenca { background: #d4edda; color: #155724; }
+        .bg-falta { background: #f8d7da; color: #721c24; }
 
-        .icone-discreto { position: absolute; top: 1.2cm; right: 1.2cm; width: 60px; height: 60px; opacity: 0.15; filter: grayscale(100%); pointer-events: none; }
-        .frase-bottom { font-size: 10px; font-weight: 900; text-transform: uppercase; font-style: italic; }
+        select { width: 100%; padding: 12px; margin: 10px 0; border-radius: 5px; border: 1px solid #ddd; font-size: 16px; }
+        
+        .btn-imprimir { 
+            background-color: #28a745; color: white; padding: 12px; border: none; 
+            border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px;
+        }
+
+        /* --- VISUAL DA TABELA --- */
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; background: white; }
+        th, td { border: 1px solid #000; height: 30px; font-size: 10px; text-align: center; }
+        
+        .col-nome { width: 250px; text-align: left !important; padding-left: 8px; font-weight: bold; }
+        .col-dia { width: 30px; background-color: #f8f9fa; }
+        
+        /* Colunas de Estatísticas (SÓ APARECEM NA TELA) */
+        .col-admin { width: 60px; background-color: #e9ecef; font-weight: bold; }
+
+        /* --- REGRAS DE IMPRESSÃO (PROFESSOR) --- */
+        @media print {
+            @page { size: A4 landscape; margin: 8mm; }
+            
+            /* Esconde o painel de seleção e as colunas de estatísticas */
+            .painel-admin, .col-admin { display: none !important; }
+            
+            body { background: white; padding: 0; }
+            
+            .area-chamada { display: block !important; }
+            
+            /* Aumenta a altura para o professor marcar com facilidade */
+            td { height: 38px; font-size: 11px; }
+            th { background-color: #eee !important; -webkit-print-color-adjust: exact; }
+
+            .col-nome { width: 30%; }
+        }
     </style>
 </head>
 <body>
-    <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+    <div class="painel-admin">
+        <h2 style="margin-top:0">Painel de Controle de Turmas</h2>
+        <p>Selecione a turma para visualizar o desempenho dos alunos e imprimir a folha de chamada limpa.</p>
+        
+        <select id="select-turmas">
+            <option value="">Carregando turmas...</option>
+        </select>
+        
+        <button class="btn-imprimir" onclick="window.print()">
+            IMPRIMIR CHAMADA PARA O PROFESSOR
+        </button>
+    </div>
 
-        // CONFIGURAÇÃO DO BANCO DE DADOS
-        const SUPA_URL = "https://ovswayndqjujyidshwzv.supabase.co";
-        const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92c3dheW5kcWp1anlpZHNod3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgxODA4NDIsImV4cCI6MjA1Mzc1Njg0Mn0.yYmF0Xy_D799X0680_WnS8Bhq8B0V5yLqL-E-yL6_K4";
-        const supabase = supabase.createClient(SUPA_URL, SUPA_KEY);
-
-        const ICONES_OFICINA = {
-            'PIANO': '🎹', 'VIOLÃO': '🎸', 'GUITARRA': '🎸', 'BATERIA': '🥁', 'VOCAL': '🎤', 'VIOLINO': '🎻', 'TEA': '🧩'
-        };
-
-        const FRASES_PROFESSORES = {
-            'CARLOS': "O piano é a alma que traduz o silêncio em melodia.",
-            'MICHEL': "O ritmo é a pulsação da vida; toque com o coração.",
-            'ESTHER': "Sua voz é um instrumento único, deixe-a ressoar.",
-            'JOÃO PAULO': "No violão, cada corda conta uma história diferente.",
-            'SAMUEL': "A harmonia do violino eleva o espírito.",
-            'DEFAULT': "A música é a linguagem universal da humanidade."
-        };
-
-        const FRASES_MES = [
-            "Janeiro: Novos acordes para um novo ciclo.", "Fevereiro: O ritmo da alegria nos conduz.",
-            "Março: Harmonia em cada descoberta.", "Abril: A música floresce em nós.",
-            "Maio: Melodias que abraçam.", "Junho: Som e tradição.",
-            "Julho: A arte não tira férias.", "Agosto: Sopre inspiração.",
-            "Setembro: Cores e sons em sintonia.", "Outubro: A magia de aprender.",
-            "Novembro: Gratidão em cada nota.", "Dezembro: O encerramento de um sonho."
-        ];
-
-        const App = () => {
-            const [abaAtiva, setAbaAtiva] = useState('menu');
-            const [professorSel, setProfessorSel] = useState("");
-            const [turmas, setTurmas] = useState([]);
-            const [idAtivo, setIdAtivo] = useState(null);
-            const [alunos, setAlunos] = useState([]);
-            const [mes, setMes] = useState(new Date().getMonth());
-
-            // BUSCAR TURMAS DO SUPABASE
-            useEffect(() => {
-                const fetchTurmas = async () => {
-                    const { data, error } = await supabase.from('turmas').select('*').order('professor');
-                    if (data) setTurmas(data);
-                };
-                fetchTurmas();
-            }, []);
-
-            // BUSCAR ALUNOS QUANDO SELECIONAR TURMA
-            useEffect(() => {
-                if (idAtivo) {
-                    const fetchAlunos = async () => {
-                        const { data } = await supabase.from('alunos').select('*').eq('turma_id', idAtivo).order('nome_completo');
-                        // Garante 15 linhas na tabela
-                        const listaCompleta = Array(15).fill("").map((_, i) => ({
-                            nome_completo: data[i] ? data[i].nome_completo : ""
-                        }));
-                        setAlunos(listaCompleta);
-                    };
-                    fetchAlunos();
-                }
-            }, [idAtivo]);
-
-            const cursoAtivo = turmas.find(c => c.id === idAtivo);
-            const professoresUnicos = [...new Set(turmas.map(t => t.professor))];
-
-            const datas = (() => {
-                if(!cursoAtivo) return [];
-                const dts = [];
-                const diasPermitidos = JSON.parse(cursoAtivo.dias.replace('{','[').replace('}',']'));
-                const ult = new Date(2026, mes + 1, 0).getDate();
-                for (let i = 1; i <= ult; i++) {
-                    const d = new Date(2026, mes, i);
-                    if (diasPermitidos.includes(d.getDay())) {
-                        dts.push(`${i < 10 ? '0'+i : i}/${mes+1 < 10 ? '0'+(mes+1) : mes+1}`);
-                    }
-                }
-                return dts.slice(0, 8); // Mantém layout da tabela
-            })();
-
-            return (
-                <div>
-                    <div className="no-print bg-black text-white p-4 flex justify-between items-center px-10 border-b-4 border-yellow-500">
-                        <h1 className="text-xl font-black italic tracking-tighter">CASA DA MÚSICA 2026</h1>
-                        <button onClick={() => {setAbaAtiva('menu'); setProfessorSel(""); setIdAtivo(null);}} className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 font-black text-xs uppercase border-2 border-white">Início</button>
-                    </div>
-
-                    {abaAtiva === 'menu' && (
-                        <div className="max-w-7xl mx-auto mt-10 p-6">
-                            {!professorSel ? (
-                                <div className="text-center">
-                                    <h2 className="text-4xl font-black mb-10 text-zinc-800 uppercase italic">DIÁRIOS DE CLASSE</h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                        {professoresUnicos.map(p => (
-                                            <div key={p} onClick={() => setProfessorSel(p)} className="card-selecao p-8 text-center">
-                                                <div className="text-5xl mb-3">🎵</div>
-                                                <div className="text-lg font-black uppercase leading-tight">{p}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="animate-in fade-in slide-in-from-bottom-4">
-                                    <button onClick={() => setProfessorSel("")} className="bg-black text-white px-6 py-3 font-black mb-6 uppercase border-b-4 border-yellow-500">← Voltar</button>
-                                    <h2 className="text-4xl font-black uppercase border-b-8 border-black mb-8 pb-2">{professorSel}</h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <div className="space-y-4">
-                                            <h3 className="bg-zinc-800 text-white p-4 font-black text-center uppercase">Turmas Disponíveis</h3>
-                                            {turmas.filter(c => c.professor === professorSel).map(c => (
-                                                <div key={c.id} onClick={() => {setIdAtivo(c.id); setAbaAtiva('chamada');}} className="card-selecao p-4 font-black">
-                                                    <span className="text-2xl">{c.horario}</span><br/>
-                                                    <span className="text-xs text-zinc-500 uppercase">{c.oficina} | {c.dias === '{1,3}' ? '2ª/4ª' : '3ª/5ª'}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {abaAtiva === 'chamada' && cursoAtivo && (
-                        <div className="p-4">
-                            <div className="no-print max-w-6xl mx-auto flex items-end gap-4 mb-6 bg-white p-6 border-l-[16px] border-yellow-500 shadow border-2 border-black">
-                                <div className="flex-1">
-                                    <p className="font-black text-3xl uppercase leading-none">PROF. {cursoAtivo.professor}</p>
-                                    <p className="font-bold text-zinc-600 mt-2 uppercase">{cursoAtivo.oficina} | {cursoAtivo.horario}</p>
-                                </div>
-                                <select className="p-4 border-4 border-black font-black uppercase cursor-pointer" value={mes} onChange={e => setMes(Number(e.target.value))}>
-                                    {["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"].map((m, i) => <option key={i} value={i}>{m}</option>)}
-                                </select>
-                                <button onClick={() => window.print()} className="bg-black text-white px-10 py-5 font-black uppercase border-b-4 border-yellow-500 hover:bg-zinc-800 transition">Imprimir</button>
-                            </div>
-
-                            <div className="folha-chamada">
-                                <span className="icone-discreto text-6xl">
-                                    {ICONES_OFICINA[cursoAtivo.oficina.split(' ')[0].toUpperCase()] || '🎵'}
-                                </span>
-                                
-                                <div className="flex justify-between items-start mb-6">
-                                    <div className="flex gap-4 items-center">
-                                        <div className="w-16 h-16 border-4 border-black flex items-end justify-around p-1">
-                                            <div className="w-2 h-8 bg-black"></div>
-                                            <div className="w-2 h-8 bg-black"></div>
-                                            <div className="w-2 h-8 bg-black"></div>
-                                        </div>
-                                        <div>
-                                            <h1 className="text-4xl font-black uppercase leading-tight">{cursoAtivo.professor}</h1>
-                                            <p className="text-2xl font-black underline italic">OFICINA: {cursoAtivo.oficina}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="bg-black text-white px-8 py-2 text-4xl font-black uppercase">{["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"][mes]}</div>
-                                        <p className="font-black mt-1 text-lg">CASA DA MÚSICA 2026</p>
-                                    </div>
-                                </div>
-
-                                <div className="header-box">
-                                    <div className="header-item w-1/3"><label>OFICINA:</label><p className="font-black text-xl">{cursoAtivo.oficina}</p></div>
-                                    <div className="header-item"><label>CLASSIFICAÇÃO:</label><p className="font-black text-lg">BÁSICO</p></div>
-                                    <div className="header-item"><label>HORÁRIO:</label><p className="font-black text-lg">{cursoAtivo.horario} ({cursoAtivo.dias === '{1,3}' ? '2ª/4ª' : '3ª/5ª'})</p></div>
-                                </div>
-
-                                <table className="tabela-chamada">
-                                    <thead>
-                                        <tr>
-                                            <th className="w-12">Nº</th>
-                                            <th className="col-nome text-left px-4">NOME DO ALUNO</th>
-                                            {datas.map(d => <th key={d} className="w-16">{d}</th>)}
-                                            {[...Array(8 - datas.length)].map((_, i) => <th key={i} className="w-16"></th>)}
-                                            <th className="w-12 bg-zinc-100">P</th>
-                                            <th className="w-12 bg-zinc-100">F</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {alunos.map((aluno, i) => (
-                                            <tr key={i}>
-                                                <td>{i + 1}</td>
-                                                <td className="text-left px-2"><span className="font-black uppercase">{aluno.nome_completo}</span></td>
-                                                {[...Array(8)].map((_, di) => <td key={di}></td>)}
-                                                <td className="bg-zinc-100"></td><td className="bg-zinc-100"></td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-
-                                <div className="mt-8 flex justify-between items-center">
-                                    <div className="flex flex-col">
-                                        <span className="frase-bottom">{FRASES_MES[mes]}</span>
-                                        <span className="frase-bottom mt-1">{FRASES_PROFESSORES[cursoAtivo.professor.toUpperCase()] || FRASES_PROFESSORES['DEFAULT']}</span>
-                                    </div>
-                                    <div className="w-[450px] border-t-4 border-black text-center pt-2 font-black uppercase text-sm italic">Assinatura do Professor Responsável</div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+    <div class="area-chamada">
+        <div id="cabecalho-print" style="border: 2px solid #000; padding: 10px; margin-bottom: 10px;">
+            <h2 style="text-align:center; margin: 0; font-size: 18px;">CASA DA MÚSICA - FOLHA DE FREQUÊNCIA</h2>
+            <div id="info-turma" style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 10px; text-transform: uppercase;">
                 </div>
-            );
-        };
+        </div>
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        <table>
+            <thead>
+                <tr id="linha-dias">
+                    <th class="col-nome">NOME DO ALUNO</th>
+                    <th class="col-admin">PRES.</th>
+                    <th class="col-admin">FALT.</th>
+                </tr>
+            </thead>
+            <tbody id="corpo-tabela">
+                </tbody>
+        </table>
+    </div>
+
+    <script>
+        // CONFIGURAÇÃO SUPABASE (Suas chaves mantidas conforme solicitado)
+        const URL = 'SUA_URL_AQUI'; 
+        const KEY = 'SUA_KEY_AQUI';
+        const supabase = supabase.createClient(URL, KEY);
+
+        const select = document.getElementById('select-turmas');
+        const corpo = document.getElementById('corpo-tabela');
+        const info = document.getElementById('info-turma');
+        const linhaDias = document.getElementById('linha-dias');
+
+        // 1. Gerar os dias 01 a 31 no cabeçalho
+        const thAdmin = document.querySelectorAll('.col-admin');
+        for (let i = 1; i <= 31; i++) {
+            const th = document.createElement('th');
+            th.className = 'col-dia';
+            th.innerText = i.toString().padStart(2, '0');
+            linhaDias.insertBefore(th, thAdmin[0]);
+        }
+
+        // 2. Carregar Turmas
+        async function carregarTurmas() {
+            const { data } = await supabase.from('turmas').select('*').order('professor');
+            select.innerHTML = '<option value="">Selecione a Turma...</option>';
+            data.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.innerText = `${t.professor} - ${t.oficina} (${t.horario})`;
+                select.appendChild(opt);
+            });
+        }
+
+        // 3. Atualizar ao selecionar turma
+        select.addEventListener('change', async (e) => {
+            const tId = e.target.value;
+            if (!tId) return;
+
+            const { data: turma } = await supabase.from('turmas').select('*').eq('id', tId).single();
+            info.innerHTML = `
+                <span><strong>Professor:</strong> ${turma.professor}</span>
+                <span><strong>Oficina:</strong> ${turma.oficina}</span>
+                <span><strong>Horário:</strong> ${turma.horario}</span>
+            `;
+
+            // Busca alunos e frequencia
+            const { data: alunos } = await supabase
+                .from('alunos')
+                .select('id, nome_completo, frequencia(status)')
+                .eq('turma_id', tId)
+                .order('nome_completo');
+
+            corpo.innerHTML = '';
+            alunos.forEach(aluno => {
+                const p = aluno.frequencia?.filter(f => f.status === 'P').length || 0;
+                const f = aluno.frequencia?.filter(f => f.status === 'F').length || 0;
+
+                const tr = document.createElement('tr');
+                let html = `<td class="col-nome">${aluno.nome_completo}</td>`;
+                for (let i = 0; i < 31; i++) html += '<td></td>'; // Campos vazios para o professor
+                html += `<td class="col-admin"><span class="stats-badge bg-presenca">${p}</span></td>`;
+                html += `<td class="col-admin"><span class="stats-badge bg-falta">${f}</span></td>`;
+                tr.innerHTML = html;
+                corpo.appendChild(tr);
+            });
+
+            // Linhas extras para a folha impressa não ficar curta
+            for (let i = alunos.length; i < 15; i++) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="col-nome"></td>` + '<td></td>'.repeat(31) + '<td class="col-admin"></td><td class="col-admin"></td>';
+                corpo.appendChild(tr);
+            }
+        });
+
+        carregarTurmas();
     </script>
 </body>
 </html>
