@@ -3,177 +3,291 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Administrativo - Casa da Música</title>
+    <title>Sistema Casa da Música - Chamada Personalizada</title>
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; }
+        /* CONFIGURAÇÕES GERAIS */
+        body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; }
         
+        /* PAINEL DE CONTROLE (SÓ TELA) */
         .no-print { 
-            background: white; padding: 20px; border-radius: 8px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 1100px; margin: 0 auto 20px; 
+            background: white; padding: 20px; border-radius: 8px; border: 1px solid #ccc;
+            max-width: 1000px; margin: 0 auto 20px; display: flex; align-items: center; gap: 10px;
+        }
+        select, button { padding: 12px; border-radius: 4px; border: 1px solid #333; font-size: 14px; }
+        .btn-print { background: #000; color: #fff; cursor: pointer; font-weight: bold; text-transform: uppercase; flex-grow: 1; }
+
+        /* LAYOUT DA CHAMADA (ESTILO DA IMAGEM) */
+        .area-chamada { 
+            background: white; width: 297mm; min-height: 210mm; margin: 0 auto; padding: 10mm; box-sizing: border-box;
+            border: 1px solid #eee; position: relative; /* Para o ícone no canto */
         }
 
-        .controles-mes { display: flex; gap: 10px; margin-bottom: 15px; }
-        select, button { padding: 10px; border-radius: 5px; border: 1px solid #ddd; font-size: 14px; }
-        
-        .btn-imprimir { background-color: #28a745; color: white; border: none; font-weight: bold; cursor: pointer; flex-grow: 1; }
+        /* Ícone da Oficina no canto superior direito */
+        .icone-curso { 
+            position: absolute; top: 15mm; right: 15mm; width: 50px; height: 50px; 
+            object-fit: contain; opacity: 0.7; /* Discreto */
+        }
 
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; background: white; }
-        th, td { border: 1px solid #000; height: 35px; font-size: 11px; text-align: center; }
+        /* CABEÇALHO COM LOGO */
+        .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
         
-        .col-nome { width: 300px; text-align: left !important; padding-left: 8px; font-weight: bold; }
-        .col-dia-aula { width: 45px; } /* Colunas maiores para os dias de aula */
+        .logo-box { display: flex; align-items: center; gap: 15px; }
+        .piano-icon { width: 65px; height: 65px; border: 4px solid #000; display: flex; align-items: flex-end; justify-content: space-evenly; padding: 5px; box-sizing: border-box; }
+        .key { width: 9px; height: 35px; background: #000; }
         
-        .col-admin { width: 60px; background-color: #f8f9fa; font-weight: bold; }
+        .prof-info h1 { margin: 0; font-size: 38px; text-transform: uppercase; font-weight: 900; letter-spacing: 1px; line-height: 1; }
+        .prof-info h2 { margin: 0; font-size: 20px; text-decoration: underline; font-style: italic; text-transform: uppercase; font-weight: 900; }
 
+        .mes-box { background: #000; color: #fff; padding: 10px 45px; text-align: center; min-width: 180px; }
+        .mes-box h2 { margin: 0; font-size: 32px; text-transform: uppercase; font-weight: 900; }
+        .mes-box p { margin: 0; font-size: 13px; font-weight: bold; letter-spacing: 1px; }
+
+        /* BOX DE INFORMAÇÕES (BORDAS GROSSAS) */
+        .info-bar { display: grid; grid-template-columns: 1.2fr 1fr 1.2fr; border: 3px solid #000; margin-bottom: 20px; }
+        .info-item { border-right: 3px solid #000; padding: 8px 15px; }
+        .info-item:last-child { border-right: none; }
+        .info-label { display: block; font-size: 11px; font-weight: 900; text-transform: uppercase; }
+        .info-value { display: block; font-size: 18px; font-weight: 900; text-transform: uppercase; margin-top: 2px; }
+
+        /* TABELA DE CHAMADA */
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th, td { border: 2px solid #000; height: 35px; font-size: 13px; text-align: center; font-weight: 900; }
+        
+        thead th { background-color: #fff; }
+        .col-n { width: 45px; }
+        .col-nome { width: 380px; text-align: left !important; padding-left: 10px; text-transform: uppercase; }
+        .col-data { width: 65px; }
+        .col-stats { width: 45px; }
+
+        /* RODAPÉ COM FRASES */
+        .footer-frases { margin-top: 20px; text-align: center; font-size: 11px; color: #333; }
+        .frase-mes { font-style: italic; margin-bottom: 5px; }
+        .frase-professor { font-weight: bold; }
+
+        /* CONFIGURAÇÃO DE IMPRESSÃO */
         @media print {
-            @page { size: A4 landscape; margin: 8mm; }
-            .no-print, .col-admin { display: none !important; }
-            body { background: white; padding: 0; }
-            td { height: 40px; font-size: 12px; }
-            th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; }
+            @page { size: A4 landscape; margin: 0; }
+            body { padding: 0; background: white; }
+            .no-print { display: none !important; }
+            .area-chamada { border: none; padding: 10mm; width: 100%; }
+            th, td { border: 2px solid #000 !important; }
         }
     </style>
 </head>
 <body>
 
     <div class="no-print">
-        <h2 style="margin-top:0">Gerador de Chamada Cronológica</h2>
-        <div class="controles-mes">
-            <select id="select-mes">
-                <option value="0">Janeiro</option><option value="1">Fevereiro</option>
-                <option value="2">Março</option><option value="3">Abril</option>
-                <option value="4">Maio</option><option value="5">Junho</option>
-                <option value="6">Julho</option><option value="7">Agosto</option>
-                <option value="8">Setembro</option><option value="9">Outubro</option>
-                <option value="10">Novembro</option><option value="11">Dezembro</option>
-            </select>
-            <select id="select-turmas"><option value="">Carregando turmas...</option></select>
-            <button class="btn-imprimir" onclick="window.print()">IMPRIMIR FOLHA DO MÊS</button>
-        </div>
+        <select id="select-mes">
+            <option value="0">JANEIRO</option><option value="1">FEVEREIRO</option>
+            <option value="2">MARÇO</option><option value="3">ABRIL</option>
+            <option value="4">MAIO</option><option value="5">JUNHO</option>
+            <option value="6">JULHO</option><option value="7">AGOSTO</option>
+            <option value="8">SETEMBRO</option><option value="9">OUTUBRO</option>
+            <option value="10">NOVEMBRO</option><option value="11">DEZEMBRO</option>
+        </select>
+        <select id="select-turmas"><option value="">CARREGANDO TURMAS...</option></select>
+        <button class="btn-print" onclick="window.print()">IMPRIMIR FOLHA AGORA</button>
     </div>
 
     <div class="area-chamada">
-        <div id="cabecalho-print" style="border: 2px solid #000; padding: 10px; margin-bottom: 10px;">
-            <h2 id="titulo-mes" style="text-align:center; margin: 0; font-size: 18px; text-transform: uppercase;">FOLHA DE FREQUÊNCIA</h2>
-            <div id="info-turma" style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 10px; text-transform: uppercase;"></div>
+        <img id="icone-oficina" src="" alt="Ícone do Curso" class="icone-curso" />
+
+        <div class="header-container">
+            <div class="logo-box">
+                <div class="piano-icon">
+                    <div class="key"></div><div class="key"></div><div class="key"></div><div class="key"></div>
+                </div>
+                <div class="prof-info">
+                    <h1 id="view-professor">PROFESSOR</h1>
+                    <h2 id="view-oficina-top">OFICINA</h2>
+                </div>
+            </div>
+            <div class="mes-box">
+                <h2 id="view-mes">MÊS</h2>
+                <p>CASA DA MÚSICA 2026</p>
+            </div>
+        </div>
+
+        <div class="info-bar">
+            <div class="info-item">
+                <span class="info-label">Oficina:</span>
+                <span id="info-oficina" class="info-value"></span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Classificação:</span>
+                <span id="info-classificacao" class="info-value">NÃO INFORMADO</span> 
+            </div>
+            <div class="info-item">
+                <span class="info-label">Horário:</span>
+                <span id="info-horario" class="info-value"></span>
+            </div>
         </div>
 
         <table>
             <thead>
-                <tr id="linha-dias">
+                <tr id="header-row">
+                    <th class="col-n">Nº</th>
                     <th class="col-nome">NOME DO ALUNO</th>
-                    <th class="col-admin">PRES.</th>
-                    <th class="col-admin">FALT.</th>
+                    <th class="col-stats">P</th>
+                    <th class="col-stats">F</th>
                 </tr>
             </thead>
-            <tbody id="corpo-tabela"></tbody>
+            <tbody id="aluno-rows">
+                </tbody>
         </table>
+
+        <div class="footer-frases">
+            <p id="frase-do-mes" class="frase-mes"></p>
+            <p id="frase-do-professor" class="frase-professor"></p>
+        </div>
     </div>
 
     <script>
-        // Use suas chaves aqui
-        const URL = 'SUA_URL_AQUI'; 
-        const KEY = 'SUA_KEY_AQUI';
-        const supabase = supabase.createClient(URL, KEY);
+        // CONFIGURAÇÃO AUTOMÁTICA COM SUAS CHAVES
+        const URL = 'https://ovswayndqjujyidshwzv.supabase.co';
+        const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92c3dheW5kcWp1anlpZHNo d3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgxODA4NDIsImV4cCI6MjA1Mzc1Njg0Mn0.yYmYt0Xy_D799X0680_WnS8B hq8B0V5yLqL-E-yL6_K4';
+        const supabaseClient = supabase.createClient(URL, KEY);
 
         const selTurma = document.getElementById('select-turmas');
         const selMes = document.getElementById('select-mes');
-        const corpo = document.getElementById('corpo-tabela');
-        const linhaDias = document.getElementById('linha-dias');
 
+        // ÍCONES DAS OFICINAS (Você pode usar URLs de imagens ou SVGs inline)
+        const iconesOficina = {
+            'PIANO': 'https://img.icons8.com/ios-filled/50/piano.png',
+            'VIOLAO': 'https://img.icons8.com/ios-filled/50/guitar.png',
+            'GUITARRA': 'https://img.icons8.com/ios-filled/50/guitar.png',
+            'BAIXO': 'https://img.icons8.com/ios-filled/50/bass-guitar.png',
+            'BATERIA': 'https://img.icons8.com/ios-filled/50/drum-set.png',
+            'PERCUSSAO': 'https://img.icons8.com/ios-filled/50/conga-drum.png',
+            'FLAUTA DOCE': 'https://img.icons8.com/ios-filled/50/flute.png',
+            'FLAUTA TRANSVERSAL': 'https://img.icons8.com/ios-filled/50/flute.png',
+            'VIOLINO': 'https://img.icons8.com/ios-filled/50/violin.png',
+            'VIOLA CAIPIRA': 'https://img.icons8.com/ios-filled/50/mandolin.png',
+            'CELLO': 'https://img.icons8.com/ios-filled/50/cello.png',
+            'VOCAL': 'https://img.icons8.com/ios-filled/50/microphone.png',
+            'ORQUESTRA': 'https://img.icons8.com/ios-filled/50/orchestra.png',
+            'FANFARRA': 'https://img.icons8.com/ios-filled/50/trumpet.png',
+            'MUSICALIZAÇÃO (TEA)': 'https://img.icons8.com/ios-filled/50/music.png',
+            // Adicione mais oficinas aqui
+            'DEFAULT': 'https://img.icons8.com/ios-filled/50/music.png' // Ícone padrão
+        };
+
+        // FRASES INSPIRADORAS POR MÊS
+        const frasesPorMes = [
+            "Janeiro: Que a melodia deste novo ano inspire cada passo.",
+            "Fevereiro: A música transforma, a folia nos une. Deixe-se levar pelo ritmo!",
+            "Março: Cada nota um novo caminho, cada aula uma nova descoberta.",
+            "Abril: Floresça na música, desabroche em talento. A arte é a sua primavera.",
+            "Maio: Homenageamos as mães e a melodia que nos embala desde o berço.",
+            "Junho: O ritmo da festa junina nos lembra que a música é alegria e tradição.",
+            "Julho: Férias são para descansar, mas a paixão pela música nunca tira folga.",
+            "Agosto: Sinta a força do vento e deixe a música te guiar. Novos ares, novas harmonias.",
+            "Setembro: As cores da primavera anunciam um novo tempo de criatividade musical.",
+            "Outubro: Celebre a alegria de aprender e a magia que a música traz para o mundo.",
+            "Novembro: A arte ilumina. Que sua dedicação resplandeça em cada melodia.",
+            "Dezembro: Que as canções de Natal encham seu coração de paz e harmonia."
+        ];
+
+        // FRASES INSPIRADORAS POR PROFESSOR (ajuste conforme os seus)
+        const frasesPorProfessor = {
+            'JOAO PAULO': "No violão, cada corda vibrante é um universo de emoções a ser explorado.",
+            'MICHEL': "A guitarra e o baixo são a pulsação do som, a base que sustenta toda a canção.",
+            'SAMUEL': "Com violinos e violas, tecemos a alma da orquestra em um abraço melódico.",
+            'ESTHER': "Sua voz é um instrumento único. Deixe-a ressoar e tocar os corações.",
+            'BECKA': "A bateria não é só ritmo; é a energia que faz a música se mover, sinta o pulso!",
+            'RODRIGO': "Percussão é a batida da vida. Sinta o ritmo e faça a música acontecer com suas mãos.",
+            'FELIPE': "A flauta, um sopro de delicadeza que encanta e transporta para outros mundos.",
+            'CARLOS': "O piano é um oceano de possibilidades. Cada tecla, uma gota de inspiração.",
+            'MARCELO CALAZANS': "A musicalização é a ponte para o mundo, onde cada som é uma nova descoberta.",
+            // Adicione mais professores aqui
+            'DEFAULT': "A música é a linguagem que o mundo entende. Deixe a sua falar mais alto!" 
+        };
+
+        // Define o mês atual como padrão ao abrir
         selMes.value = new Date().getMonth();
 
         async function carregarTurmas() {
-            const { data } = await supabase.from('turmas').select('*').order('professor');
-            selTurma.innerHTML = '<option value="">Selecione a Turma...</option>';
+            const { data } = await supabaseClient.from('turmas').select('*').order('professor');
+            selTurma.innerHTML = '<option value="">SELECIONE A TURMA</option>';
             data.forEach(t => {
                 const opt = document.createElement('option');
                 opt.value = t.id;
                 opt.dataset.dias = t.dias;
-                opt.innerText = `${t.professor} - ${t.oficina} (${t.horario})`;
+                opt.innerText = `${t.professor} - ${t.oficina}`;
                 selTurma.appendChild(opt);
             });
         }
 
-        function obterDiasDeAulaNoMes() {
+        function getDatasDoMes() {
             const mes = parseInt(selMes.value);
-            const ano = new Date().getFullYear();
+            const ano = 2026; 
             const ultimoDia = new Date(ano, mes + 1, 0).getDate();
-            const turmaSelecionada = selTurma.options[selTurma.selectedIndex];
+            const diasPermitidos = JSON.parse(selTurma.options[selTurma.selectedIndex].dataset.dias.replace('{','[').replace('}',']'));
             
-            // Converte {1,3} para [1,3]
-            const diasAulaPermitidos = turmaSelecionada.dataset.dias ? 
-                JSON.parse(turmaSelecionada.dataset.dias.replace('{','[').replace('}',']')) : [];
-
-            const datasEncontradas = [];
+            const aulas = [];
             for (let i = 1; i <= ultimoDia; i++) {
-                const dataRef = new Date(ano, mes, i);
-                if (diasAulaPermitidos.includes(dataRef.getDay())) {
-                    datasEncontradas.push({
-                        dia: i.toString().padStart(2, '0'),
-                        labelSemana: ['DOM','SEG','TER','QUA','QUI','SEX','SAB'][dataRef.getDay()]
-                    });
+                const d = new Date(ano, mes, i);
+                if (diasPermitidos.includes(d.getDay())) {
+                    aulas.push(`${i.toString().padStart(2, '0')}/${(mes + 1).toString().padStart(2, '0')}`);
                 }
             }
-            return datasEncontradas;
+            return aulas;
         }
 
-        async function atualizarTabela() {
+        async function atualizarInterface() {
             const tId = selTurma.value;
             if (!tId) return;
 
-            const diasDeAula = obterDiasDeAulaNoMes();
-            const { data: turma } = await supabase.from('turmas').select('*').eq('id', tId).single();
-            const ano = new Date().getFullYear();
+            const datas = getDatasDoMes();
+            const { data: turma } = await supabaseClient.from('turmas').select('*').eq('id', tId).single();
+            const { data: alunos } = await supabaseClient.from('alunos').select('nome_completo').eq('turma_id', tId).order('nome_completo');
 
-            // Atualiza Título e Cabeçalho
-            document.getElementById('titulo-mes').innerText = `FOLHA DE FREQUÊNCIA - ${selMes.options[selMes.selectedIndex].text} / ${ano}`;
-            document.getElementById('info-turma').innerHTML = `<span><strong>Prof:</strong> ${turma.professor}</span><span><strong>Oficina:</strong> ${turma.oficina}</span><span><strong>Horário:</strong> ${turma.horario}</span>`;
+            // Preenche Cabeçalhos e Infos
+            document.getElementById('view-professor').innerText = turma.professor;
+            document.getElementById('view-oficina-top').innerText = `OFICINA: ${turma.oficina.toUpperCase()}`;
+            document.getElementById('info-oficina').innerText = turma.oficina.toUpperCase();
+            document.getElementById('info-horario').innerText = `${turma.horario} (${turma.dias === '{1,3}' ? '2ª/4ª' : '3ª/5ª'})`;
+            document.getElementById('view-mes').innerText = selMes.options[selMes.selectedIndex].text;
+            
+            // Ícone da Oficina
+            const iconeSrc = iconesOficina[turma.oficina.toUpperCase()] || iconesOficina['DEFAULT'];
+            document.getElementById('icone-oficina').src = iconeSrc;
 
-            // Limpa e gera novas colunas de dias
-            document.querySelectorAll('.col-gerada').forEach(el => el.remove());
-            const thAdmin = document.querySelectorAll('.col-admin');
-            diasDeAula.forEach(d => {
+            // Frases de Rodapé
+            document.getElementById('frase-do-mes').innerText = frasesPorMes[parseInt(selMes.value)];
+            document.getElementById('frase-do-professor').innerText = frasesPorProfessor[turma.professor.toUpperCase()] || frasesPorProfessor['DEFAULT'];
+
+            // Limpa e Reconstrói colunas de datas
+            document.querySelectorAll('.data-header').forEach(e => e.remove());
+            const headerRow = document.getElementById('header-row');
+            datas.forEach(d => {
                 const th = document.createElement('th');
-                th.className = 'col-gerada col-dia-aula';
-                th.innerHTML = `${d.dia}<br><small>${d.labelSemana}</small>`;
-                linhaDias.insertBefore(th, thAdmin[0]);
+                th.className = 'data-header col-data';
+                th.innerText = d;
+                headerRow.insertBefore(th, headerRow.cells[headerRow.cells.length - 2]);
             });
 
-            // Busca Alunos
-            const { data: alunos } = await supabase.from('alunos').select('id, nome_completo, frequencia(status)').eq('turma_id', tId).order('nome_completo');
+            // Preenche Alunos
+            const tbody = document.getElementById('aluno-rows');
+            tbody.innerHTML = '';
+            
+            const numLinhas = Math.max(14, alunos.length);
 
-            corpo.innerHTML = '';
-            alunos.forEach(aluno => {
-                const p = aluno.frequencia?.filter(f => f.status === 'P').length || 0;
-                const f = aluno.frequencia?.filter(f => f.status === 'F').length || 0;
-
+            for (let i = 0; i < numLinhas; i++) {
                 const tr = document.createElement('tr');
-                let html = `<td class="col-nome">${aluno.nome_completo}</td>`;
-                
-                // Cria apenas os quadradinhos dos dias de aula
-                diasDeAula.forEach(() => {
-                    html += `<td></td>`;
-                });
-                
-                html += `<td class="col-admin">${p}</td><td class="col-admin">${f}</td>`;
+                let html = `<td>${i + 1}</td><td class="col-nome">${alunos[i]?.nome_completo || ''}</td>`;
+                datas.forEach(() => html += '<td></td>'); // Quadradinhos de presença
+                html += '<td></td><td></td>'; // Colunas P e F (visíveis apenas no admin view)
                 tr.innerHTML = html;
-                corpo.appendChild(tr);
-            });
-
-            // Linhas vazias para preencher a folha
-            for (let i = (alunos ? alunos.length : 0); i < 18; i++) {
-                const tr = document.createElement('tr');
-                let html = `<td class="col-nome"></td>` + `<td></td>`.repeat(diasDeAula.length) + `<td class="col-admin"></td><td class="col-admin"></td>`;
-                tr.innerHTML = html;
-                corpo.appendChild(tr);
+                tbody.appendChild(tr);
             }
         }
 
-        selTurma.addEventListener('change', atualizarTabela);
-        selMes.addEventListener('change', atualizarTabela);
+        selTurma.addEventListener('change', atualizarInterface);
+        selMes.addEventListener('change', atualizarInterface);
         carregarTurmas();
     </script>
 </body>
