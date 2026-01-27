@@ -12,7 +12,6 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@700;900&display=swap');
         body { font-family: 'Inter', sans-serif; background: #e2e8f0; }
         
-        /* REGRAS DE IMPRESSÃO - FORÇANDO A REMOÇÃO TOTAL DA COLUNA DE FALTAS */
         @media print {
             .no-print, .total-faltas-col, th:last-child, td:last-child { 
                 display: none !important; 
@@ -21,21 +20,19 @@
                 border: none !important;
             }
             body { background: white !important; }
-            .folha-chamada { width: 100% !important; margin: 0 !important; padding: 0.2cm !important; border: none !important; }
+            .folha-chamada { width: 100% !important; margin: 0 !important; padding: 0.2cm !important; border: none !important; box-shadow: none !important; }
             table { border: 2pt solid black !important; width: 100% !important; table-layout: fixed; }
             th, td { border: 1.5pt solid black !important; height: 35px !important; overflow: hidden; }
-            
-            /* Garante que o nome do aluno não saia vermelho na impressão */
-            .input-aluno { color: black !important; font-size: 12px !important; }
-            .status-p, .status-f { color: transparent !important; background: transparent !important; }
+            .input-aluno { color: black !important; font-size: 12px !important; font-weight: bold !important; }
+            .status-p, .status-f { color: transparent !important; background: transparent !important; border: 1.5pt solid black !important; }
         }
 
-        .folha-chamada { width: 29.7cm; min-height: 20cm; padding: 1cm; background: white; margin: 10px auto; border: 4px solid #000; }
+        .folha-chamada { width: 29.7cm; min-height: 20cm; padding: 1cm; background: white; margin: 10px auto; border: 4px solid #000; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1); }
         .input-aluno { width: 100%; border: none; outline: none; text-transform: uppercase; font-weight: 900; font-size: 14px; background: transparent; }
-        .celula-presenca { cursor: pointer; user-select: none; font-weight: 900; text-align: center; font-size: 12px; border: 1px solid #000; }
+        .celula-presenca { cursor: pointer; user-select: none; font-weight: 900; text-align: center; font-size: 12px; border: 1px solid #000; height: 36px; }
         .status-p { color: #16a34a; background: #f0fdf4; }
         .status-f { color: #dc2626; background: #fee2e2; }
-        .alerta-limite { color: #dc2626; font-weight: 900; }
+        .alerta-limite { color: #dc2626; font-weight: 900; text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -68,11 +65,14 @@
             }
 
             async function fetchDados() {
+                const curso = turmas.find(t => t.id === idAtivo);
+                const limiteVagas = curso?.vagas || 15;
+
                 const { data: alData } = await supabaseClient.from('alunos').select('*').eq('turma_id', idAtivo).eq('mes', mes);
                 const { data: preData } = await supabaseClient.from('frequencia').select('*').eq('turma_id', idAtivo).eq('mes', mes);
                 
-                const gridAl = Array(15).fill("");
-                alData?.forEach(al => gridAl[al.posicao] = al.nome);
+                const gridAl = Array(limiteVagas).fill("");
+                alData?.forEach(al => { if(al.posicao < limiteVagas) gridAl[al.posicao] = al.nome; });
                 setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: gridAl } }));
 
                 const gridPre = {};
@@ -91,11 +91,7 @@
             const alternarPresenca = async (alunoPos, dataAula) => {
                 const atual = presencas[alunoPos]?.[dataAula] || "";
                 let novoStatus = (atual === "") ? "P" : (atual === "P") ? "F" : "";
-
-                setPresencas(prev => ({
-                    ...prev,
-                    [alunoPos]: { ...prev[alunoPos], [dataAula]: novoStatus }
-                }));
+                setPresencas(prev => ({ ...prev, [alunoPos]: { ...prev[alunoPos], [dataAula]: novoStatus } }));
 
                 if (novoStatus === "") {
                     await supabaseClient.from('frequencia').delete().match({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula });
@@ -116,30 +112,29 @@
                 return datas.slice(0, 10);
             };
 
-            if (loading) return <div className="h-screen flex items-center justify-center font-black uppercase">Carregando Sistema...</div>;
+            if (loading) return <div className="h-screen flex items-center justify-center font-black uppercase text-2xl">CARREGANDO...</div>;
 
             if (tela === 'menu') return (
                 <div className="min-h-screen">
-                    <header className="bg-black text-white p-4 border-b-8 border-yellow-500 font-black italic text-3xl">CASA DA MÚSICA 2026</header>
-                    <div className="p-10 grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <header className="bg-black text-white p-6 border-b-8 border-yellow-500 font-black italic text-3xl">CASA DA MÚSICA 2026</header>
+                    <div className="p-10 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-7xl mx-auto">
                         {["JOÃO PAULO", "MICHEL", "ESTHER", "BECKA/RODRIGO", "CARLOS", "MARCELO CALAZANS", "SAMUEL", "FELIPE"].map(p => (
-                            <div key={p} onClick={() => {setProfSel(p); setTela('lista');}} className="bg-white border-4 border-black p-6 cursor-pointer text-center font-black hover:bg-yellow-400">
-                                <h3 className="uppercase text-xl">{p}</h3>
-                            </div>
+                            <div key={p} onClick={() => {setProfSel(p); setTela('lista');}} className="bg-white border-4 border-black p-8 cursor-pointer text-center font-black hover:scale-105 transition-all shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] uppercase text-xl">{p}</div>
                         ))}
                     </div>
                 </div>
             );
 
             if (tela === 'lista') return (
-                <div className="p-10 max-w-5xl mx-auto">
-                    <button onClick={() => setTela('menu')} className="font-black underline mb-4 text-red-600">← VOLTAR AO INÍCIO</button>
-                    <div className="grid grid-cols-2 gap-6">
+                <div className="p-10 max-w-5xl mx-auto font-black">
+                    <button onClick={() => setTela('menu')} className="underline mb-6 text-red-600 block text-xl tracking-tighter">← VOLTAR AO INÍCIO</button>
+                    <h2 className="text-4xl uppercase mb-8 border-b-8 border-black pb-2 italic">{profSel}</h2>
+                    <div className="grid grid-cols-2 gap-8">
                         {[1, 2].map(dKey => (
-                            <div key={dKey} className="bg-white border-4 border-black p-4">
-                                <h3 className="bg-black text-white p-2 font-black text-center mb-4 uppercase">{dKey === 1 ? "SEG/QUA" : "TER/QUI"}</h3>
+                            <div key={dKey} className="bg-white border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                                <h3 className="bg-black text-white p-3 text-center mb-6 uppercase text-lg">{dKey === 1 ? "SEG/QUA" : "TER/QUI"}</h3>
                                 {turmas.filter(c => c.professor === profSel && (dKey === 1 ? c.dias.includes(1) : c.dias.includes(2))).map(c => (
-                                    <div key={c.id} onClick={() => {setIdAtivo(c.id); setTela('chamada');}} className="border-2 border-black p-2 mb-2 cursor-pointer hover:bg-yellow-400 font-black flex justify-between uppercase text-xs">
+                                    <div key={c.id} onClick={() => {setIdAtivo(c.id); setTela('chamada');}} className="border-2 border-black p-3 mb-3 cursor-pointer hover:bg-yellow-400 flex justify-between uppercase text-sm">
                                         <span>{c.horario}</span> <span>{c.oficina}</span>
                                     </div>
                                 ))}
@@ -150,47 +145,43 @@
             );
 
             const cursoAtivo = turmas.find(c => c.id === idAtivo);
+            if (!cursoAtivo) return null;
+            const numVagas = cursoAtivo.vagas || 15;
             const datasAulas = getDatasDoMes(cursoAtivo.dias);
-            const nomesAtuais = (alunos[idAtivo] && alunos[idAtivo][mes]) || Array(15).fill("");
+            const nomesAtuais = (alunos[idAtivo] && alunos[idAtivo][mes]) || Array(numVagas).fill("");
 
             return (
                 <div className="min-h-screen bg-zinc-300 p-2">
                     <div className="no-print bg-black text-white p-4 mb-4 flex justify-between items-center border-b-4 border-yellow-500 sticky top-0 z-50">
-                        <h2 className="font-black uppercase">{cursoAtivo.professor} | {cursoAtivo.horario}</h2>
+                        <h2 className="font-black uppercase">{cursoAtivo.professor} | {cursoAtivo.horario} ({numVagas} VAGAS)</h2>
                         <div className="flex gap-4">
-                            <select className="text-black p-1 font-black" value={mes} onChange={e => setMes(Number(e.target.value))}>
+                            <select className="text-black p-2 font-black rounded" value={mes} onChange={e => setMes(Number(e.target.value))}>
                                 {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"].map((m,i)=><option key={i} value={i}>{m.toUpperCase()}</option>)}
                             </select>
-                            <button onClick={()=>window.print()} className="bg-green-600 px-6 py-1 font-black border uppercase text-sm">Imprimir para Professor</button>
-                            <button onClick={()=>setTela('lista')} className="bg-zinc-700 px-4 py-1 font-black border uppercase text-sm">Voltar</button>
+                            <button onClick={()=>window.print()} className="bg-green-600 px-6 py-1 font-black border uppercase">Imprimir Folha</button>
+                            <button onClick={()=>setTela('lista')} className="bg-zinc-700 px-4 py-1 font-black border uppercase">Voltar</button>
                         </div>
                     </div>
 
-                    <div className="folha-chamada mx-auto shadow-2xl">
+                    <div className="folha-chamada mx-auto">
                         <div className="flex justify-between items-end mb-4 border-b-4 border-black pb-2">
                             <div>
                                 <h1 className="text-3xl font-black uppercase italic leading-none">{cursoAtivo.professor}</h1>
                                 <p className="text-lg font-black uppercase mt-1">OFICINA: {cursoAtivo.oficina}</p>
-                                <p className="text-[10px] font-black uppercase">Horário: {cursoAtivo.horario}</p>
+                                <p className="text-xs font-black">HORÁRIO: {cursoAtivo.horario} | VAGAS: {numVagas}</p>
                             </div>
                             <div className="text-right">
-                                <div className="bg-black text-white px-6 py-1 text-2xl font-black uppercase tracking-tighter">
-                                    {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][mes]}
-                                </div>
+                                <div className="bg-black text-white px-6 py-2 text-2xl font-black uppercase">{["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][mes]}</div>
                             </div>
                         </div>
 
                         <table className="w-full border-collapse">
                             <thead>
                                 <tr className="bg-zinc-100">
-                                    <th className="border-2 border-black p-1 w-8 text-xs font-black">Nº</th>
+                                    <th className="border-2 border-black p-1 w-10 text-xs font-black text-center">Nº</th>
                                     <th className="border-2 border-black p-1 text-left w-64 text-xs font-black">NOME DO ALUNO</th>
-                                    {datasAulas.map(dt => (
-                                        <th key={dt} className="border-2 border-black p-1 w-12 text-center text-[10px] font-black">{dt}</th>
-                                    ))}
-                                    {[...Array(10 - datasAulas.length)].map((_, i) => (
-                                        <th key={i} className="border-2 border-black w-12"></th>
-                                    ))}
+                                    {datasAulas.map(dt => ( <th key={dt} className="border-2 border-black p-1 w-12 text-center text-[10px] font-black">{dt}</th> ))}
+                                    {[...Array(10 - datasAulas.length)].map((_, i) => ( <th key={i} className="border-2 border-black w-12"></th> ))}
                                     <th className="border-2 border-black p-1 w-16 text-center text-[9px] font-black bg-yellow-50 total-faltas-col">Σ FALTAS</th>
                                 </tr>
                             </thead>
@@ -212,9 +203,7 @@
                                                     </td>
                                                 );
                                             })}
-                                            {[...Array(10 - datasAulas.length)].map((_, di) => (
-                                                <td key={di} className="border-2 border-black"></td>
-                                            ))}
+                                            {[...Array(10 - datasAulas.length)].map((_, di) => ( <td key={di} className="border-2 border-black"></td> ))}
                                             <td className={`border-2 border-black text-center font-black text-sm total-faltas-col ${limiteAtingido ? 'bg-red-600 text-white' : ''}`}>
                                                 {faltas > 0 ? faltas : ""}
                                             </td>
@@ -224,7 +213,7 @@
                             </tbody>
                         </table>
                         
-                        <div className="mt-8 flex justify-between font-black text-[9px] uppercase border-t-2 border-black pt-2">
+                        <div className="mt-10 flex justify-between font-black text-[10px] uppercase border-t-2 border-black pt-2">
                             <span>COORDENAÇÃO CASA DA MÚSICA</span>
                             <span>ASSINATURA DO PROFESSOR</span>
                         </div>
