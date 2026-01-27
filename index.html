@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>SISTEMA CASA DA MÚSICA 2026 - SUPREMA CONECTADO</title>
+    <title>CASA DA MÚSICA 2026 - SISTEMA SUPREMA</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -15,12 +15,12 @@
         @media print {
             .no-print { display: none !important; }
             body { background: white !important; padding: 0 !important; }
-            .folha-chamada { border: none !important; width: 100% !important; margin: 0 !important; padding: 0.4cm !important; box-shadow: none !important; }
+            .folha-chamada { border: none !important; width: 100% !important; margin: 0 !important; padding: 0.5cm !important; box-shadow: none !important; }
             table, th, td { border: 2.5pt solid black !important; }
             .header-box { border: 4pt solid black !important; }
         }
 
-        .folha-chamada { width: 29.7cm; min-height: 20cm; padding: 1.2cm; background: white; margin: 20px auto; border: 1px solid #000; box-shadow: 0 10px 25px rgba(0,0,0,0.1); position: relative; }
+        .folha-chamada { width: 29.7cm; min-height: 20cm; padding: 1.2cm; background: white; margin: 20px auto; border: 4px solid #000; box-shadow: 0 10px 25px rgba(0,0,0,0.1); position: relative; }
         .tabela-chamada { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .tabela-chamada th, .tabela-chamada td { border: 2pt solid black; padding: 6px; text-align: center; font-size: 13px; font-weight: 900; height: 40px; }
         .col-nome { width: 350px; } 
@@ -29,9 +29,9 @@
         .header-item { border-right: 2.5pt solid black; padding: 10px 15px; flex-grow: 1; }
         .header-item:last-child { border-right: none; }
         
-        .icone-fundo { position: absolute; top: 1.2cm; right: 1.2cm; width: 80px; height: 80px; opacity: 0.1; filter: grayscale(100%); }
         .card-selecao { border: 4px solid black; transition: 0.2s; cursor: pointer; background: white; }
-        .card-selecao:hover { background: #eab308; transform: translateY(-2px); }
+        .card-selecao:hover { background: #fbbf24; transform: translateY(-2px); }
+        .icone-discreto { position: absolute; top: 1.2cm; right: 1.2cm; font-size: 80px; opacity: 0.1; filter: grayscale(1); pointer-events: none; }
     </style>
 </head>
 <body>
@@ -40,19 +40,12 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // CONEXÃO DIRETA COM SEU BANCO
-        const SUPA_URL = "https://ovswayndqjujyidshwzv.supabase.co";
-        const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92c3dheW5kcWp1anlpZHNod3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgxODA4NDIsImV4cCI6MjA1Mzc1Njg0Mn0.yYmF0Xy_D799X0680_WnS8Bhq8B0V5yLqL-E-yL6_K4";
+        // SUAS CREDENCIAIS FORNECIDAS
+        const SUPA_URL = "https://wilmewhekkvcocjbydxb.supabase.co";
+        const SUPA_KEY = "sb_publishable_mHXaPK-MFZYUggo-qy2soQ_yDDBr1IH";
         const supabaseClient = supabase.createClient(SUPA_URL, SUPA_KEY);
 
         const ICONES = { 'PIANO': '🎹', 'VIOLÃO': '🎸', 'VOCAL': '🎤', 'BATERIA': '🥁', 'VIOLINO': '🎻', 'TEA': '🧩' };
-        const FRASES_PROF = {
-            'CARLOS': "O piano é a alma que traduz o silêncio em melodia.",
-            'MICHEL': "O ritmo é a pulsação da vida; toque com o coração.",
-            'ESTHER': "Sua voz é o único instrumento que nasce com você.",
-            'JOÃO PAULO': "A música expressa o que não pode ser dito.",
-            'SAMUEL': "A harmonia eleva o espírito ao extraordinário."
-        };
 
         const App = () => {
             const [aba, setAba] = useState('menu');
@@ -62,24 +55,24 @@
             const [alunos, setAlunos] = useState([]);
             const [mes, setMes] = useState(new Date().getMonth());
 
-            // 1. CARREGA TURMAS DO BANCO
+            // Carrega turmas do banco
             useEffect(() => {
-                const carregar = async () => {
-                    const { data } = await supabaseClient.from('turmas').select('*').order('professor');
+                const fetchTurmas = async () => {
+                    const { data, error } = await supabaseClient.from('turmas').select('*').order('professor');
                     if (data) setTurmas(data);
                 };
-                carregar();
+                fetchTurmas();
             }, []);
 
-            // 2. CARREGA ALUNOS DA TURMA SELECIONADA
+            // Carrega alunos da turma
             useEffect(() => {
                 if (idTurma) {
-                    const carregarAlunos = async () => {
+                    const fetchAlunos = async () => {
                         const { data } = await supabaseClient.from('alunos').select('nome_completo').eq('turma_id', idTurma).order('nome_completo');
                         const preenchidos = Array(15).fill("").map((_, i) => ({ nome: data?.[i]?.nome_completo || "" }));
                         setAlunos(preenchidos);
                     };
-                    carregarAlunos();
+                    fetchAlunos();
                 }
             }, [idTurma]);
 
@@ -89,6 +82,7 @@
             const gerarDatas = () => {
                 if (!turmaAtiva) return [];
                 const dts = [];
+                // Trata o formato de array do Supabase {1,3} para [1,3]
                 const diasPermitidos = JSON.parse(turmaAtiva.dias.replace('{','[').replace('}',']'));
                 const ultimoDia = new Date(2026, mes + 1, 0).getDate();
                 for (let i = 1; i <= ultimoDia; i++) {
@@ -103,34 +97,34 @@
             const datas = gerarDatas();
 
             return (
-                <div className="min-h-screen">
+                <div>
                     <div className="no-print bg-black text-white p-4 flex justify-between items-center px-10 border-b-4 border-yellow-500">
-                        <h1 className="text-xl font-black italic tracking-tighter uppercase">Casa da Música 2026</h1>
-                        <button onClick={() => {setAba('menu'); setProfessorAtivo("");}} className="bg-zinc-800 px-4 py-2 font-black text-xs border-2 border-white uppercase">Início</button>
+                        <h1 className="text-xl font-black italic uppercase tracking-tighter">Casa da Música 2026</h1>
+                        <button onClick={() => {setAba('menu'); setProfessorAtivo(""); setIdTurma(null);}} className="bg-zinc-800 px-4 py-2 font-black text-xs border-2 border-white">INÍCIO</button>
                     </div>
 
                     {aba === 'menu' ? (
                         <div className="max-w-7xl mx-auto p-10">
                             {!professorAtivo ? (
-                                <div>
-                                    <h2 className="text-4xl font-black mb-10 text-center uppercase italic">Selecione o Professor</h2>
+                                <div className="text-center">
+                                    <h2 className="text-4xl font-black mb-10 uppercase italic">Diários de Classe</h2>
                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                                         {professores.map(p => (
                                             <div key={p} onClick={() => setProfessorAtivo(p)} className="card-selecao p-8 text-center font-black uppercase">
-                                                <div className="text-4xl mb-2">🎵</div>{p}
+                                                <div className="text-5xl mb-3">🎵</div>{p}
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             ) : (
                                 <div>
-                                    <button onClick={() => setProfessorAtivo("")} className="mb-6 font-black uppercase">← Voltar</button>
-                                    <h2 className="text-3xl font-black border-b-4 border-black mb-6 uppercase">{professorAtivo}</h2>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <button onClick={() => setProfessorAtivo("")} className="mb-6 font-black uppercase bg-black text-white px-4 py-2">← Voltar</button>
+                                    <h2 className="text-3xl font-black border-b-8 border-black mb-8 pb-2 uppercase">{professorAtivo}</h2>
+                                    <div className="grid grid-cols-2 gap-6">
                                         {turmas.filter(t => t.professor === professorAtivo).map(t => (
-                                            <div key={t.id} onClick={() => {setIdTurma(t.id); setAba('chamada');}} className="card-selecao p-4 font-black">
-                                                <div className="text-xl">{t.horario}</div>
-                                                <div className="text-sm opacity-60 uppercase">{t.oficina} | {t.dias === '{1,3}' ? 'SEG/QUA' : 'TER/QUI'}</div>
+                                            <div key={t.id} onClick={() => {setIdTurma(t.id); setAba('chamada');}} className="card-selecao p-6 font-black">
+                                                <div className="text-2xl">{t.horario}</div>
+                                                <div className="text-sm opacity-60 uppercase">{t.oficina} | {t.dias === '{1,3}' ? '2ª/4ª' : '3ª/5ª'}</div>
                                             </div>
                                         ))}
                                     </div>
@@ -139,19 +133,19 @@
                         </div>
                     ) : (
                         <div className="p-4">
-                            <div className="no-print max-w-6xl mx-auto flex items-end gap-4 mb-6 bg-white p-6 border-2 border-black shadow-[8px_8px_0px_rgba(0,0,0,1)]">
+                            <div className="no-print max-w-6xl mx-auto flex items-end gap-4 mb-6 bg-white p-6 border-4 border-black shadow-[10px_10px_0px_rgba(0,0,0,1)]">
                                 <div className="flex-grow font-black uppercase">
-                                    <div className="text-2xl">PROF. {turmaAtiva?.professor}</div>
-                                    <div className="text-sm opacity-50">{turmaAtiva?.oficina} | {turmaAtiva?.horario}</div>
+                                    <div className="text-2xl">PROFESSOR: {turmaAtiva?.professor}</div>
+                                    <div className="text-sm text-zinc-500">{turmaAtiva?.oficina} | {turmaAtiva?.horario}</div>
                                 </div>
-                                <select className="p-4 border-4 border-black font-black" value={mes} onChange={e => setMes(Number(e.target.value))}>
-                                    {["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"].map((m, i) => <option key={i} value={i}>{m}</option>)}
+                                <select className="p-4 border-4 border-black font-black uppercase" value={mes} onChange={e => setMes(Number(e.target.value))}>
+                                    {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"].map((m, i) => <option key={i} value={i}>{m.toUpperCase()}</option>)}
                                 </select>
-                                <button onClick={() => window.print()} className="bg-black text-white px-10 py-5 font-black uppercase">Imprimir</button>
+                                <button onClick={() => window.print()} className="bg-black text-white px-10 py-5 font-black uppercase hover:bg-yellow-500 hover:text-black transition-colors">Imprimir Diário</button>
                             </div>
 
                             <div className="folha-chamada">
-                                <div className="icone-fundo text-8xl">{ICONES[turmaAtiva?.oficina.toUpperCase()] || '🎵'}</div>
+                                <div className="icone-discreto">{ICONES[turmaAtiva?.oficina.toUpperCase()] || '🎵'}</div>
                                 <div className="flex justify-between items-start mb-6">
                                     <div className="flex gap-4 items-center">
                                         <div className="w-16 h-16 border-4 border-black flex items-end justify-around p-1">
@@ -163,14 +157,14 @@
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <div className="bg-black text-white px-8 py-2 text-4xl font-black uppercase">{["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"][mes]}</div>
-                                        <p className="font-black mt-1">CASA DA MÚSICA 2026</p>
+                                        <div className="bg-black text-white px-8 py-2 text-4xl font-black uppercase">{["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][mes]}</div>
+                                        <p className="font-black mt-1 text-lg italic">CASA DA MÚSICA 2026</p>
                                     </div>
                                 </div>
 
                                 <div className="header-box">
                                     <div className="header-item w-1/3"><label>OFICINA:</label><p className="font-black text-xl uppercase">{turmaAtiva?.oficina}</p></div>
-                                    <div className="header-item"><label>CLASSIFICAÇÃO:</label><p className="font-black text-lg">BÁSICO</p></div>
+                                    <div className="header-item"><label>CLASSIFICAÇÃO:</label><p className="font-black text-lg">BÁSICO / INTERMEDIÁRIO</p></div>
                                     <div className="header-item"><label>HORÁRIO:</label><p className="font-black text-lg">{turmaAtiva?.horario} ({turmaAtiva?.dias === '{1,3}' ? '2ª/4ª' : '3ª/5ª'})</p></div>
                                 </div>
 
@@ -195,11 +189,11 @@
                                         ))}
                                     </tbody>
                                 </table>
-                                <div className="mt-10 flex justify-between items-end">
+                                <div className="mt-12 flex justify-between items-end">
                                     <div className="text-[10px] font-black italic uppercase w-1/2">
-                                        {FRASES_PROF[turmaAtiva?.professor.toUpperCase()] || "A música é a linguagem universal da humanidade."}
+                                        "A música é a arte de exprimir os sentimentos por meio do som."
                                     </div>
-                                    <div className="w-[400px] border-t-4 border-black text-center pt-2 font-black uppercase text-xs">Assinatura do Professor</div>
+                                    <div className="w-[450px] border-t-4 border-black text-center pt-2 font-black uppercase text-sm">Assinatura do Professor Responsável</div>
                                 </div>
                             </div>
                         </div>
