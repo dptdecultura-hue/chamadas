@@ -20,8 +20,8 @@
 
         /* Ícone Discreto no Canto */
         #icone-oficina { 
-            position: absolute; top: 10mm; right: 10mm; width: 60px; height: 60px; 
-            opacity: 0.1; filter: grayscale(100%);
+            position: absolute; top: 10mm; right: 10mm; width: 45px; height: 45px; 
+            opacity: 0.15; filter: grayscale(100%);
         }
 
         .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
@@ -36,21 +36,21 @@
         .mes-box h2 { margin: 0; font-size: 32px; text-transform: uppercase; font-weight: 900; }
         .mes-box p { margin: 0; font-size: 13px; font-weight: bold; letter-spacing: 1px; }
 
-        .info-bar { display: grid; grid-template-columns: 1.2fr 1fr 1.2fr; border: 4px solid #000; margin-bottom: 20px; }
-        .info-item { border-right: 4px solid #000; padding: 8px 15px; }
+        .info-bar { display: grid; grid-template-columns: 1.2fr 1fr 1.2fr; border: 3px solid #000; margin-bottom: 20px; }
+        .info-item { border-right: 3px solid #000; padding: 8px 15px; }
         .info-item:last-child { border-right: none; }
         .info-label { display: block; font-size: 11px; font-weight: 900; text-transform: uppercase; }
         .info-value { display: block; font-size: 18px; font-weight: 900; text-transform: uppercase; margin-top: 2px; }
 
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        th, td { border: 2.5px solid #000; height: 38px; font-size: 13px; text-align: center; font-weight: 900; }
+        th, td { border: 2px solid #000; height: 35px; font-size: 13px; text-align: center; font-weight: 900; }
         .col-n { width: 45px; }
         .col-nome { width: 380px; text-align: left !important; padding-left: 10px; text-transform: uppercase; }
         .col-data { width: 65px; }
 
-        .footer-frases { margin-top: 20px; text-align: center; font-size: 12px; border-top: 2px solid #000; padding-top: 10px; }
-        .frase-mes { font-style: italic; color: #444; display: block; margin-bottom: 4px; }
-        .frase-prof { font-weight: 900; text-transform: uppercase; display: block; letter-spacing: 0.5px; }
+        .footer-frases { margin-top: 15px; text-align: center; font-size: 11px; border-top: 1px solid #000; padding-top: 10px; }
+        .frase-mes { font-style: italic; color: #555; display: block; margin-bottom: 3px; }
+        .frase-prof { font-weight: 900; text-transform: uppercase; display: block; }
 
         @media print {
             @page { size: A4 landscape; margin: 0; }
@@ -67,4 +67,119 @@
             <option value="0">JANEIRO</option><option value="1">FEVEREIRO</option>
             <option value="2">MARÇO</option><option value="3">ABRIL</option>
             <option value="4">MAIO</option><option value="5">JUNHO</option>
-            <option value="6">JUL
+            <option value="6">JULHO</option><option value="7">AGOSTO</option>
+            <option value="8">SETEMBRO</option><option value="9">OUTUBRO</option>
+            <option value="10">NOVEMBRO</option><option value="11">DEZEMBRO</option>
+        </select>
+        <select id="select-turmas"><option value="">CARREGANDO TURMAS...</option></select>
+        <button class="btn-print" onclick="window.print()">IMPRIMIR FOLHA</button>
+    </div>
+
+    <div class="area-chamada">
+        <img id="icone-oficina" src="" alt="">
+        <div class="header-container">
+            <div class="logo-box">
+                <div class="piano-icon"><div class="key"></div><div class="key"></div><div class="key"></div><div class="key"></div></div>
+                <div class="prof-info"><h1 id="view-professor">---</h1><h2 id="view-oficina-top">OFICINA: ---</h2></div>
+            </div>
+            <div class="mes-box"><h2 id="view-mes">MÊS</h2><p>CASA DA MÚSICA 2026</p></div>
+        </div>
+
+        <div class="info-bar">
+            <div class="info-item"><span class="info-label">Oficina:</span><span id="info-oficina" class="info-value">---</span></div>
+            <div class="info-item"><span class="info-label">Classificação:</span><span id="info-class" class="info-value">BÁSICO</span></div>
+            <div class="info-item"><span class="info-label">Horário:</span><span id="info-horario" class="info-value">---</span></div>
+        </div>
+
+        <table>
+            <thead><tr id="header-row"><th class="col-n">Nº</th><th class="col-nome">NOME DO ALUNO</th><th style="width:45px">P</th><th style="width:45px">F</th></tr></thead>
+            <tbody id="aluno-rows"></tbody>
+        </table>
+
+        <div class="footer-frases">
+            <span id="frase-mes" class="frase-mes"></span>
+            <span id="frase-prof" class="frase-prof"></span>
+        </div>
+    </div>
+
+    <script>
+        const URL = 'https://ovswayndqjujyidshwzv.supabase.co';
+        const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92c3dheW5kcWp1anlpZHNod3p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgxODA4NDIsImV4cCI6MjA1Mzc1Njg0Mn0.yYmF0Xy_D799X0680_WnS8Bhq8B0V5yLqL-E-yL6_K4';
+        const supabaseClient = supabase.createClient(URL, KEY);
+
+        const icones = {
+            'PIANO': 'https://img.icons8.com/ios-filled/100/piano.png',
+            'VIOLÃO': 'https://img.icons8.com/ios-filled/100/acoustic-guitar.png',
+            'VOCAL': 'https://img.icons8.com/ios-filled/100/microphone.png',
+            'BATERIA': 'https://img.icons8.com/ios-filled/100/drum-set.png'
+        };
+
+        const frasesProf = {
+            'CARLOS': "O piano é a alma que traduz o silêncio em melodia.",
+            'MICHEL': "O ritmo é a pulsação da vida; toque com o coração.",
+            'ESTHER': "Sua voz é o único instrumento que nasce com você. Cuide dela."
+        };
+
+        const frasesMes = ["Renove sua técnica.", "A música une corações.", "Harmonia em cada nota.", "Sopre a inspiração.", "Sinta o compasso.", "Melodia de inverno.", "Férias com som.", "A arte de ouvir.", "Cresça na música.", "Dia da alegria musical.", "Som e gratidão.", "Encerramento de gala."];
+
+        async function init() {
+            const { data } = await supabaseClient.from('turmas').select('*').order('professor');
+            const sel = document.getElementById('select-turmas');
+            sel.innerHTML = '<option value="">SELECIONE A TURMA</option>';
+            data.forEach(t => {
+                let opt = document.createElement('option');
+                opt.value = t.id; opt.dataset.dias = t.dias; opt.innerText = `${t.professor} - ${t.oficina}`;
+                sel.appendChild(opt);
+            });
+        }
+
+        async function atualizar() {
+            const tId = document.getElementById('select-turmas').value;
+            if(!tId) return;
+
+            const mesIdx = parseInt(document.getElementById('select-mes').value);
+            const { data: turma } = await supabaseClient.from('turmas').select('*').eq('id', tId).single();
+            const { data: alunos } = await supabaseClient.from('alunos').select('nome_completo').eq('turma_id', tId).order('nome_completo');
+
+            document.getElementById('view-professor').innerText = turma.professor;
+            document.getElementById('view-oficina-top').innerText = `OFICINA: ${turma.oficina}`;
+            document.getElementById('info-oficina').innerText = turma.oficina;
+            document.getElementById('info-horario').innerText = `${turma.horario} (${turma.dias === '{1,3}' ? '2ª/4ª' : '3ª/5ª'})`;
+            document.getElementById('view-mes').innerText = document.getElementById('select-mes').options[mesIdx].text;
+            
+            document.getElementById('icone-oficina').src = icones[turma.oficina.toUpperCase()] || '';
+            document.getElementById('frase-mes').innerText = frasesMes[mesIdx];
+            document.getElementById('frase-prof').innerText = frasesProf[turma.professor.toUpperCase()] || "A música é o barulho que pensa.";
+
+            const diasPermitidos = JSON.parse(turma.dias.replace('{','[').replace('}',']'));
+            const header = document.getElementById('header-row');
+            document.querySelectorAll('.dt-h').forEach(e => e.remove());
+            
+            let datas = [];
+            for (let i = 1; i <= new Date(2026, mesIdx + 1, 0).getDate(); i++) {
+                let d = new Date(2026, mesIdx, i);
+                if (diasPermitidos.includes(d.getDay())) {
+                    let dataFormat = `${i.toString().padStart(2,'0')}/${(mesIdx+1).toString().padStart(2,'0')}`;
+                    datas.push(dataFormat);
+                    let th = document.createElement('th'); th.className = 'dt-h col-data'; th.innerText = dataFormat;
+                    header.insertBefore(th, header.cells[header.cells.length - 2]);
+                }
+            }
+
+            const tbody = document.getElementById('aluno-rows');
+            tbody.innerHTML = '';
+            for (let i = 0; i < Math.max(14, alunos.length); i++) {
+                let tr = document.createElement('tr');
+                let html = `<td>${i+1}</td><td class="col-nome">${alunos[i]?.nome_completo || ''}</td>`;
+                datas.forEach(() => html += '<td></td>');
+                html += '<td></td><td></td>';
+                tr.innerHTML = html; tbody.appendChild(tr);
+            }
+        }
+
+        document.getElementById('select-turmas').onchange = atualizar;
+        document.getElementById('select-mes').onchange = atualizar;
+        init();
+    </script>
+</body>
+</html>
