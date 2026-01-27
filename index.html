@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CASA DA MÚSICA - GESTÃO 2026</title>
+    <title>CASA DA CULTURA - GESTÃO 2026</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -120,7 +120,7 @@
             if (tela === 'menu') return (
                 <div className="min-h-screen p-8">
                     <div className="max-w-6xl mx-auto">
-                        <h1 className="text-4xl font-black mb-12 border-l-8 border-black pl-6 uppercase">Casa da Música <span className="text-gray-400">2026</span></h1>
+                        <h1 className="text-4xl font-black mb-12 border-l-8 border-black pl-6 uppercase">Casa da Cultura <span className="text-gray-400">Jardim Europa</span></h1>
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                             {[...new Set(turmas.map(t => t.professor))].sort().map(p => (
                                 <button key={p} onClick={() => {setProfSel(p); setTela('lista');}} className="btn-menu bg-white p-8 font-black text-sm uppercase tracking-widest">{p}</button>
@@ -195,7 +195,6 @@
                                 <tr>
                                     <th className="w-8">Nº</th>
                                     <th className="w-64 text-left pl-4">Nome do Aluno</th>
-                                    {/* AJUSTE: Removemos as colunas vazias extras */}
                                     {datasAulas.map(dt => <th key={dt} className="text-center text-[10px]">{dt}</th>)}
                                     <th className="w-16 total-faltas-col">Faltas</th>
                                 </tr>
@@ -214,7 +213,6 @@
                                                     placeholder="..."
                                                 />
                                             </td>
-                                            {/* AJUSTE: Apenas as colunas com datas reais */}
                                             {datasAulas.map(dt => {
                                                 const status = presencas[i]?.[dt] || "";
                                                 return (
@@ -235,7 +233,7 @@
                         </table>
 
                         <footer className="mt-12 flex justify-between items-center text-[9px] font-bold uppercase tracking-widest text-gray-400 border-t pt-4">
-                            <span>Casa da Música Teixeira de Freitas</span>
+                            <span>Casa da Cultura Jardim Europa — Gestão 2026</span>
                             <div className="flex gap-20">
                                 <span className="border-t border-black pt-1 w-48 text-center uppercase">Assinatura do Professor</span>
                             </div>
