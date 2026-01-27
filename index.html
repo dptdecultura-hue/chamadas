@@ -2,30 +2,40 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>CASA DA MÚSICA 2026 - SUPREMA</title>
+    <title>SISTEMA CASA DA MÚSICA 2026</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background: #f1f5f9; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #e2e8f0; }
+        
+        /* CORREÇÃO DAS LINHAS PARA IMPRESSÃO */
         @media print {
+            @page { size: landscape; margin: 0.5cm; }
             .no-print { display: none !important; }
-            body { background: white !important; padding: 0 !important; }
-            .folha-chamada { border: none !important; width: 100% !important; margin: 0 !important; padding: 0.5cm !important; box-shadow: none !important; }
-            table, th, td { border: 2.5pt solid black !important; }
-            .header-box { border: 4pt solid black !important; }
+            body { background: white !important; }
+            .folha-chamada { width: 100% !important; margin: 0 !important; padding: 0.5cm !important; border: none !important; }
+            
+            table { border-collapse: collapse !important; width: 100% !important; border: 2pt solid black !important; }
+            th, td { 
+                border: 1.5pt solid black !important; 
+                height: 35px !important; 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact;
+            }
         }
-        .folha-chamada { width: 29.7cm; min-height: 20cm; padding: 1.2cm; background: white; margin: 20px auto; border: 4px solid #000; position: relative; }
-        .tabela-chamada { width: 100%; border-collapse: collapse; }
-        .tabela-chamada th, .tabela-chamada td { border: 2pt solid black; padding: 6px; text-align: center; font-size: 13px; font-weight: 900; height: 40px; }
-        .header-box { border: 4pt solid black; display: flex; margin-bottom: 15px; background: white; }
-        .header-item { border-right: 2.5pt solid black; padding: 10px 15px; flex-grow: 1; }
-        .header-item:last-child { border-right: none; }
-        .card-selecao { border: 4px solid black; transition: 0.2s; cursor: pointer; background: white; }
-        .card-selecao:hover { background: #fbbf24; transform: translateY(-2px); }
+
+        .folha-chamada { width: 29.7cm; min-height: 20cm; padding: 1cm; background: white; margin: 20px auto; border: 4px solid #000; box-shadow: 15px 15px 0px rgba(0,0,0,0.1); }
+        .input-aluno { width: 100%; border: none; outline: none; text-transform: uppercase; font-weight: 900; font-size: 14px; background: transparent; }
+        .card-professor { background: white; border: 4px solid black; padding: 1.5rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: 0.2s; }
+        .card-professor:hover { transform: scale(1.05); box-shadow: 10px 10px 0px #000; background: #fbbf24; }
+        
+        /* Garantia de bordas visíveis na tela */
+        table { border-collapse: collapse; }
+        th, td { border: 2px solid black; }
     </style>
 </head>
 <body>
@@ -34,158 +44,196 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        const SUPA_URL = "https://wilmewhekkvcocjbydxb.supabase.co";
-        const SUPA_KEY = "sb_publishable_mHXaPK-MFZYUggo-qy2soQ_yDDBr1IH";
-        const supabaseClient = supabase.createClient(SUPA_URL, SUPA_KEY);
+        // CONEXÃO OFICIAL
+        const SUPABASE_URL = 'https://wilmewhekkvcocjbydxb.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_mHXaPK-MFZYUggo-qy2soQ_yDDBr1IH';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const App = () => {
-            const [aba, setAba] = useState('menu');
-            const [professorAtivo, setProfessorAtivo] = useState("");
-            const [turmas, setTurmas] = useState([]);
-            const [idTurma, setIdTurma] = useState(null);
-            const [alunos, setAlunos] = useState([]);
+            const [tela, setTela] = useState('menu');
+            const [profSel, setProfSel] = useState("");
+            const [idAtivo, setIdAtivo] = useState(null);
             const [mes, setMes] = useState(new Date().getMonth());
-            const [carregando, setCarregando] = useState(false);
+            const [turmas, setTurmas] = useState([]);
+            const [alunosGrid, setAlunosGrid] = useState(Array(15).fill(""));
+            const [loading, setLoading] = useState(true);
 
+            // 1. Carregar Turmas
             useEffect(() => {
-                const fetchTurmas = async () => {
-                    const { data } = await supabaseClient.from('turmas').select('*').order('professor');
-                    if (data) setTurmas(data);
-                };
+                async function fetchTurmas() {
+                    const { data, error } = await supabaseClient.from('turmas').select('*').order('professor');
+                    if (!error) setTurmas(data);
+                    setLoading(false);
+                }
                 fetchTurmas();
             }, []);
 
-            // Função disparada ao clicar na turma
-            const selecionarTurma = async (id) => {
-                setCarregando(true);
-                setIdTurma(id);
-                setAba('chamada');
-                
-                try {
-                    const { data, error } = await supabaseClient
-                        .from('alunos')
-                        .select('nome_completo')
-                        .eq('turma_id', id)
-                        .order('nome_completo');
-
-                    if (data) {
-                        const preenchidos = Array(20).fill("").map((_, i) => ({ 
-                            nome: data[i] ? data[i].nome_completo : "" 
-                        }));
-                        setAlunos(preenchidos);
+            // 2. Carregar Alunos quando mudar a turma ou o mês
+            useEffect(() => {
+                if (idAtivo !== null) {
+                    async function fetchAlunos() {
+                        const { data, error } = await supabaseClient
+                            .from('alunos')
+                            .select('*')
+                            .eq('turma_id', idAtivo)
+                            .eq('mes', mes);
+                        
+                        const novoGrid = Array(15).fill("");
+                        if (!error && data) {
+                            data.forEach(al => {
+                                if(al.posicao < 15) novoGrid[al.posicao] = al.nome;
+                            });
+                        }
+                        setAlunosGrid(novoGrid);
                     }
-                } catch (e) {
-                    console.error("Erro ao carregar alunos", e);
-                } finally {
-                    setCarregando(false);
+                    fetchAlunos();
                 }
+            }, [idAtivo, mes]);
+
+            const salvarAluno = async (index, nome) => {
+                if (!idAtivo) return;
+                
+                // Upsert: Se existir a combinação (turma_id, mes, posicao), ele atualiza o nome.
+                const { error } = await supabaseClient.from('alunos').upsert({
+                    turma_id: idAtivo,
+                    nome: nome.toUpperCase(),
+                    mes: mes,
+                    posicao: index
+                }, { onConflict: 'turma_id, mes, posicao' });
+                
+                if (error) console.error("Erro ao salvar no banco:", error);
             };
 
-            const turmaAtiva = turmas.find(t => t.id === idTurma);
-            const professores = [...new Set(turmas.map(t => t.professor))];
-
-            const gerarDatas = () => {
-                if (!turmaAtiva || !turmaAtiva.dias) return [];
-                const dts = [];
-                // Converte string do banco {1,3} ou texto para array de números
-                const diasLimpos = turmaAtiva.dias.toString().replace(/{|}|\[|\]/g, '').split(',').map(Number);
-                const ultimoDia = new Date(2026, mes + 1, 0).getDate();
-                
-                for (let i = 1; i <= ultimoDia; i++) {
-                    const d = new Date(2026, mes, i);
-                    if (diasLimpos.includes(d.getDay())) {
-                        dts.push(`${i.toString().padStart(2,'0')}/${(mes+1).toString().padStart(2,'0')}`);
+            const getDatasDoMes = (diasSemanaStr) => {
+                // Converte "{1,3}" ou "[1,3]" para array de números
+                const diasSemana = diasSemanaStr.replace(/{|}|\[|\]/g, '').split(',').map(Number);
+                const datas = []; 
+                const ano = 2026;
+                const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+                for (let d = 1; d <= ultimoDia; d++) {
+                    const dataProd = new Date(ano, mes, d);
+                    if (diasSemana.includes(dataProd.getDay())) {
+                        datas.push(`${d.toString().padStart(2,'0')}/${(mes+1).toString().padStart(2,'0')}`);
                     }
                 }
-                return dts.slice(0, 8);
+                return datas.slice(0, 10);
             };
+
+            const getIcone = (p) => {
+                const i = {"ESTHER":"🎤","CARLOS":"🎹","SAMUEL":"🎻","FELIPE":"🪈","MARCELO CALAZANS":"🧩","BECKA/RODRIGO":"🥁","JOÃO PAULO":"🎸","MICHEL":"🎸"};
+                return i[p.toUpperCase()] || "🎵";
+            };
+
+            if (loading) return <div className="h-screen flex items-center justify-center font-black animate-pulse">CARREGANDO BANCO DE DADOS...</div>;
+
+            if (tela === 'menu') return (
+                <div className="min-h-screen">
+                    <header className="bg-black text-white p-6 flex justify-between items-center border-b-8 border-yellow-500">
+                        <h1 className="text-3xl font-black italic uppercase tracking-tighter">CASA DA MÚSICA 2026</h1>
+                        <span className="bg-green-500 text-black px-3 py-1 text-xs font-black rounded-full">SISTEMA ONLINE</span>
+                    </header>
+                    <div className="p-10 max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6">
+                        {[...new Set(turmas.map(t => t.professor))].map(p => (
+                            <div key={p} onClick={() => {setProfSel(p); setTela('lista');}} className="card-professor">
+                                <span className="text-6xl">{getIcone(p)}</span>
+                                <h3 className="font-black mt-4 text-center uppercase text-sm leading-tight">{p}</h3>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+
+            if (tela === 'lista') return (
+                <div className="p-10 max-w-5xl mx-auto">
+                    <button onClick={() => setTela('menu')} className="font-black uppercase bg-black text-white px-4 py-2 mb-6 hover:bg-red-600 transition-colors">← Voltar</button>
+                    <h2 className="text-5xl font-black uppercase mb-8 border-b-8 border-black pb-2 italic">{profSel}</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {turmas.filter(t => t.professor === profSel).map(t => (
+                            <div key={t.id} onClick={() => {setIdAtivo(t.id); setTela('chamada');}} className="bg-white border-4 border-black p-6 cursor-pointer hover:bg-yellow-400 font-black flex justify-between items-center group">
+                                <div>
+                                    <div className="text-3xl">{t.horario}</div>
+                                    <div className="text-sm opacity-60 uppercase">{t.oficina}</div>
+                                </div>
+                                <span className="text-2xl group-hover:translate-x-2 transition-transform">➔</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+
+            const cursoAtivo = turmas.find(c => c.id === idAtivo);
+            const datasAutomáticas = getDatasDoMes(cursoAtivo.dias);
 
             return (
-                <div>
-                    <div className="no-print bg-black text-white p-4 flex justify-between items-center px-10 border-b-4 border-yellow-500">
-                        <h1 className="text-xl font-black italic uppercase">Casa da Música 2026</h1>
-                        <button onClick={() => {setAba('menu'); setProfessorAtivo("");}} className="bg-zinc-800 px-4 py-2 font-black text-xs border-2 border-white">VOLTAR AO INÍCIO</button>
+                <div className="min-h-screen bg-zinc-200 p-2">
+                    <div className="no-print bg-black text-white p-4 mb-4 flex justify-between items-center border-b-4 border-yellow-500 max-w-7xl mx-auto">
+                        <h2 className="font-black uppercase tracking-widest">{cursoAtivo.professor} | {cursoAtivo.oficina}</h2>
+                        <div className="flex gap-4">
+                            <select className="text-black px-4 py-1 font-black uppercase cursor-pointer" value={mes} onChange={e => setMes(Number(e.target.value))}>
+                                {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"].map((m,i)=><option key={i} value={i}>{m}</option>)}
+                            </select>
+                            <button onClick={()=>window.print()} className="bg-green-600 px-6 py-1 font-black border-2 border-white hover:bg-green-700">IMPRIMIR</button>
+                            <button onClick={()=>setTela('lista')} className="bg-zinc-700 px-4 py-1 font-black border-2 border-white hover:bg-zinc-800">VOLTAR</button>
+                        </div>
                     </div>
 
-                    {aba === 'menu' ? (
-                        <div className="max-w-7xl mx-auto p-10">
-                            {!professorAtivo ? (
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                    {professores.map(p => (
-                                        <div key={p} onClick={() => setProfessorAtivo(p)} className="card-selecao p-8 text-center font-black uppercase">
-                                            <div className="text-4xl mb-2">👤</div>{p}
-                                        </div>
+                    <div className="folha-chamada mx-auto shadow-2xl">
+                        <div className="flex justify-between items-end mb-6">
+                            <div>
+                                <h1 className="text-5xl font-black uppercase italic leading-none">{cursoAtivo.professor}</h1>
+                                <p className="text-2xl font-black uppercase border-b-4 border-black inline-block mt-2">OFICINA: {cursoAtivo.oficina}</p>
+                                <p className="text-sm font-black block mt-2 opacity-70">HORÁRIO: {cursoAtivo.horario} | DIÁRIO DE CLASSE 2026</p>
+                            </div>
+                            <div className="text-right">
+                                <div className="bg-black text-white px-8 py-2 text-4xl font-black uppercase italic tracking-tighter">
+                                    {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][mes]}
+                                </div>
+                                <p className="font-black mt-1 text-[12px] uppercase tracking-widest">Casa da Música</p>
+                            </div>
+                        </div>
+
+                        <table className="w-full">
+                            <thead>
+                                <tr className="bg-zinc-100">
+                                    <th className="w-12 font-black text-center">Nº</th>
+                                    <th className="text-left px-4 w-1/3 font-black">NOME DO ALUNO</th>
+                                    {datasAutomáticas.map(dt => (
+                                        <th key={dt} className="w-16 text-center text-[11px] font-black bg-white">{dt}</th>
                                     ))}
-                                </div>
-                            ) : (
-                                <div>
-                                    <h2 className="text-3xl font-black border-b-8 border-black mb-8 pb-2 uppercase">{professorAtivo}</h2>
-                                    <div className="grid grid-cols-2 gap-6">
-                                        {turmas.filter(t => t.professor === professorAtivo).map(t => (
-                                            <div key={t.id} onClick={() => selecionarTurma(t.id)} className="card-selecao p-6 font-black">
-                                                <div className="text-2xl">{t.horario}</div>
-                                                <div className="text-sm opacity-60 uppercase">{t.oficina}</div>
-                                            </div>
+                                    {[...Array(10 - datasAutomáticas.length)].map((_, i) => (
+                                        <th key={i} className="w-16 bg-zinc-50"></th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {alunosGrid.map((nome, i) => (
+                                    <tr key={i} className="h-10">
+                                        <td className="text-center font-black text-sm bg-zinc-50">{i+1}</td>
+                                        <td className="px-2">
+                                            <input 
+                                                className="input-aluno" 
+                                                value={nome} 
+                                                placeholder="..."
+                                                onChange={e => {
+                                                    const novo = [...alunosGrid];
+                                                    novo[i] = e.target.value;
+                                                    setAlunosGrid(novo);
+                                                }}
+                                                onBlur={(e) => salvarAluno(i, e.target.value)}
+                                            />
+                                        </td>
+                                        {[...Array(10)].map((_, di) => (
+                                            <td key={di}></td>
                                         ))}
-                                    </div>
-                                </div>
-                            )}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <div className="mt-12 flex justify-between items-center font-black text-[10px] uppercase opacity-50">
+                            <span>VISTO COORDENAÇÃO: ________________________________________________</span>
+                            <span>ASSINATURA PROFESSOR: ________________________________________________</span>
                         </div>
-                    ) : (
-                        <div className="p-4">
-                            {carregando ? (
-                                <div className="text-center font-black p-20 uppercase">Carregando Diário...</div>
-                            ) : (
-                                <div className="folha-chamada mx-auto">
-                                    <div className="flex justify-between items-start mb-6">
-                                        <div className="flex gap-4 items-center">
-                                            <div className="w-16 h-16 border-4 border-black flex items-end justify-around p-1">
-                                                <div className="w-2 h-10 bg-black"></div><div className="w-2 h-10 bg-black"></div><div className="w-2 h-10 bg-black"></div>
-                                            </div>
-                                            <div>
-                                                <h1 className="text-4xl font-black uppercase leading-none">{turmaAtiva?.professor}</h1>
-                                                <p className="text-2xl font-black italic underline uppercase">Oficina: {turmaAtiva?.oficina}</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right no-print">
-                                            <select className="p-2 border-4 border-black font-black uppercase mb-2" value={mes} onChange={e => setMes(Number(e.target.value))}>
-                                                {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"].map((m, i) => <option key={i} value={i}>{m.toUpperCase()}</option>)}
-                                            </select>
-                                            <button onClick={() => window.print()} className="block bg-black text-white px-6 py-2 font-black uppercase">IMPRIMIR</button>
-                                        </div>
-                                    </div>
-
-                                    <div className="header-box">
-                                        <div className="header-item w-1/3"><label className="text-[10px] block">OFICINA:</label><p className="font-black text-xl uppercase">{turmaAtiva?.oficina}</p></div>
-                                        <div className="header-item"><label className="text-[10px] block">MÊS:</label><p className="font-black text-lg uppercase">{["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][mes]}</p></div>
-                                        <div className="header-item"><label className="text-[10px] block">HORÁRIO:</label><p className="font-black text-lg">{turmaAtiva?.horario}</p></div>
-                                    </div>
-
-                                    <table className="tabela-chamada">
-                                        <thead>
-                                            <tr>
-                                                <th className="w-12">Nº</th>
-                                                <th className="w-[350px] text-left px-4">NOME DO ALUNO</th>
-                                                {gerarDatas().map(d => <th key={d} className="w-16">{d}</th>)}
-                                                {[...Array(Math.max(0, 8 - gerarDatas().length))].map((_, i) => <th key={i} className="w-16"></th>)}
-                                                <th className="w-12 bg-zinc-100">P</th><th className="w-12 bg-zinc-100">F</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {alunos.map((a, i) => (
-                                                <tr key={i}>
-                                                    <td>{i + 1}</td>
-                                                    <td className="text-left px-4 uppercase font-black overflow-hidden whitespace-nowrap">{a.nome}</td>
-                                                    {[...Array(8)].map((_, di) => <td key={di}></td>)}
-                                                    <td className="bg-zinc-100"></td><td className="bg-zinc-100"></td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                    </div>
                 </div>
             );
         };
