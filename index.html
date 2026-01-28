@@ -71,7 +71,6 @@
                 const { data: alData } = await supabaseClient.from('alunos').select('*').eq('turma_id', idAtivo).eq('mes', mes).order('posicao', { ascending: true });
                 const { data: preData } = await supabaseClient.from('frequencia').select('*').eq('turma_id', idAtivo).eq('mes', mes);
                 
-                // Se não houver alunos, começa com pelo menos 1 linha vazia
                 const listaAlunos = alData && alData.length > 0 ? alData.map(a => a.nome) : [""];
                 setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: listaAlunos } }));
 
@@ -144,6 +143,7 @@
                     <h2 className="text-5xl font-black mb-12 italic uppercase border-b-4 border-black pb-2">{profSel}</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {[1, 2].map(dKey => {
+                            // Filtro ajustado para identificar turmas de Seg/Qua (1) ou Ter/Qui (2)
                             const filtradas = turmas.filter(c => c.professor === profSel && String(c.dias).includes(String(dKey)));
                             if (filtradas.length === 0) return null;
                             return (
@@ -190,7 +190,10 @@
                         <header className="flex justify-between items-start mb-8 border-b-2 border-black pb-6">
                             <div>
                                 <h1 className="text-5xl font-black uppercase mb-1 leading-none tracking-tighter italic">{cursoAtivo.professor}</h1>
-                                <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">{cursoAtivo.oficina} — {cursoAtivo.horario}</p>
+                                {/* AJUSTE AQUI: Adicionado SEGUNDA E QUARTA / TERÇA E QUINTA ao lado do horário */}
+                                <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+                                    {cursoAtivo.oficina} — {cursoAtivo.horario} — {String(cursoAtivo.dias).includes('1') ? "SEGUNDA E QUARTA" : "TERÇA E QUINTA"}
+                                </p>
                             </div>
                             <div className="text-right">
                                 <span className="block text-[10px] font-black text-gray-400 uppercase">Frequência 2026</span>
