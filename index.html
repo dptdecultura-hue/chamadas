@@ -28,9 +28,9 @@
         th { background: #f1f5f9; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.05em; padding: 8px 4px; border: 1px solid #cbd5e1; }
         td { border: 1px solid #cbd5e1; height: 40px; }
         .input-aluno { width: 100%; height: 100%; padding: 0 8px; border: none; outline: none; font-family: 'Roboto Mono', monospace; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; background: transparent; }
-        .celula-data { cursor: pointer; text-align: center; font-weight: 900; font-size: 1rem; }
-        .status-p { background-color: #dcfce7; color: #166534; }
-        .status-f { background-color: #fee2e2; color: #991b1b; }
+        .celula-data { cursor: pointer; text-align: center; font-weight: 900; font-size: 1rem; user-select: none; }
+        .status-p { background-color: #dcfce7 !important; color: #166534 !important; }
+        .status-f { background-color: #fee2e2 !important; color: #991b1b !important; }
         .btn-menu { transition: all 0.2s; border: 2px solid #000; box-shadow: 4px 4px 0px #000; }
         .btn-menu:hover { transform: translateY(-2px); box-shadow: 6px 6px 0px #000; }
     </style>
@@ -90,38 +90,31 @@
 
             const adicionarLinha = () => {
                 setAlunos(prev => {
-                    const currentList = prev[idAtivo][mes];
+                    const currentList = prev[idAtivo][mes] || [];
                     return { ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: [...currentList, ""] } };
                 });
             };
 
-            // --- CORREÇÃO AQUI: LÓGICA DE ALTERNAR STATUS ---
+            // --- LÓGICA DE CLIQUE CORRIGIDA ---
             const alternarPresenca = async (alunoPos, dataAula) => {
                 const atual = presencas[alunoPos]?.[dataAula] || "";
-                let novoStatus = (atual === "") ? "P" : (atual === "P") ? "F" : "";
-                
-                // Atualiza o estado visual primeiro (mais rápido)
+                let novoStatus = "";
+
+                if (atual === "") novoStatus = "P";
+                else if (atual === "P") novoStatus = "F";
+                else novoStatus = "";
+
+                // Atualiza a tela primeiro
                 setPresencas(prev => ({
                     ...prev,
                     [alunoPos]: { ...(prev[alunoPos] || {}), [dataAula]: novoStatus }
                 }));
 
-                // Sincroniza com o Supabase
+                // Salva no banco
                 if (novoStatus === "") {
-                    await supabaseClient.from('frequencia').delete().match({ 
-                        turma_id: idAtivo, 
-                        mes: mes, 
-                        aluno_posicao: alunoPos, 
-                        data_aula: dataAula 
-                    });
+                    await supabaseClient.from('frequencia').delete().match({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula });
                 } else {
-                    await supabaseClient.from('frequencia').upsert({ 
-                        turma_id: idAtivo, 
-                        mes: mes, 
-                        aluno_posicao: alunoPos, 
-                        data_aula: dataAula, 
-                        status: novoStatus 
-                    });
+                    await supabaseClient.from('frequencia').upsert({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula, status: novoStatus });
                 }
             };
 
@@ -260,13 +253,6 @@
                         <button onClick={adicionarLinha} className="no-print mt-4 text-[10px] font-black uppercase bg-gray-100 px-4 py-2 border border-black hover:bg-black hover:text-white transition-colors">
                             + Adicionar Aluno nesta Turma
                         </button>
-
-                        <footer className="mt-12 flex justify-between items-center text-[9px] font-bold uppercase tracking-widest text-gray-400 border-t pt-4">
-                            <span>Casa da Cultura Jardim Europa — Gestão 2026</span>
-                            <div className="flex gap-20">
-                                <span className="border-t border-black pt-1 w-48 text-center uppercase">Assinatura do Professor</span>
-                            </div>
-                        </footer>
                     </div>
                 </div>
             );
