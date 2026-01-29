@@ -90,12 +90,12 @@
 
             const adicionarLinha = () => {
                 setAlunos(prev => {
-                    const currentList = prev[idAtivo][mes] || [];
+                    const currentList = prev[idAtivo]?.[mes] || [""];
                     return { ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: [...currentList, ""] } };
                 });
             };
 
-            // --- LÓGICA DE CLIQUE CORRIGIDA ---
+            // --- CORREÇÃO DO ERRO 409 ---
             const alternarPresenca = async (alunoPos, dataAula) => {
                 const atual = presencas[alunoPos]?.[dataAula] || "";
                 let novoStatus = "";
@@ -104,17 +104,23 @@
                 else if (atual === "P") novoStatus = "F";
                 else novoStatus = "";
 
-                // Atualiza a tela primeiro
+                // Atualiza visual na hora
                 setPresencas(prev => ({
                     ...prev,
                     [alunoPos]: { ...(prev[alunoPos] || {}), [dataAula]: novoStatus }
                 }));
 
-                // Salva no banco
+                // Sincroniza sem conflito (Upsert com onConflict)
                 if (novoStatus === "") {
-                    await supabaseClient.from('frequencia').delete().match({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula });
+                    await supabaseClient.from('frequencia')
+                        .delete()
+                        .match({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula });
                 } else {
-                    await supabaseClient.from('frequencia').upsert({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula, status: novoStatus });
+                    await supabaseClient.from('frequencia')
+                        .upsert(
+                            { turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula, status: novoStatus },
+                            { onConflict: 'turma_id,mes,aluno_posicao,data_aula' }
+                        );
                 }
             };
 
@@ -177,7 +183,7 @@
             const cursoAtivo = turmas.find(c => c.id === idAtivo);
             if (!cursoAtivo) return null;
             const datasAulas = getDatasDoMes(cursoAtivo.dias);
-            const nomesAtuais = (alunos[idAtivo] && alunos[idAtivo][mes]) || [""];
+            const nomesAtuais = (alunos[idAtivo]?.[mes]) || [""];
 
             return (
                 <div className="min-h-screen pb-20">
