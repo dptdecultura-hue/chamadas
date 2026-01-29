@@ -95,17 +95,33 @@
                 });
             };
 
+            // --- CORREÇÃO AQUI: LÓGICA DE ALTERNAR STATUS ---
             const alternarPresenca = async (alunoPos, dataAula) => {
                 const atual = presencas[alunoPos]?.[dataAula] || "";
                 let novoStatus = (atual === "") ? "P" : (atual === "P") ? "F" : "";
+                
+                // Atualiza o estado visual primeiro (mais rápido)
                 setPresencas(prev => ({
                     ...prev,
                     [alunoPos]: { ...(prev[alunoPos] || {}), [dataAula]: novoStatus }
                 }));
+
+                // Sincroniza com o Supabase
                 if (novoStatus === "") {
-                    await supabaseClient.from('frequencia').delete().match({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula });
+                    await supabaseClient.from('frequencia').delete().match({ 
+                        turma_id: idAtivo, 
+                        mes: mes, 
+                        aluno_posicao: alunoPos, 
+                        data_aula: dataAula 
+                    });
                 } else {
-                    await supabaseClient.from('frequencia').upsert({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula, status: novoStatus });
+                    await supabaseClient.from('frequencia').upsert({ 
+                        turma_id: idAtivo, 
+                        mes: mes, 
+                        aluno_posicao: alunoPos, 
+                        data_aula: dataAula, 
+                        status: novoStatus 
+                    });
                 }
             };
 
@@ -143,7 +159,6 @@
                     <h2 className="text-5xl font-black mb-12 italic uppercase border-b-4 border-black pb-2">{profSel}</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {[1, 2].map(dKey => {
-                            // Filtro ajustado para identificar turmas de Seg/Qua (1) ou Ter/Qui (2)
                             const filtradas = turmas.filter(c => c.professor === profSel && String(c.dias).includes(String(dKey)));
                             if (filtradas.length === 0) return null;
                             return (
@@ -190,7 +205,6 @@
                         <header className="flex justify-between items-start mb-8 border-b-2 border-black pb-6">
                             <div>
                                 <h1 className="text-5xl font-black uppercase mb-1 leading-none tracking-tighter italic">{cursoAtivo.professor}</h1>
-                                {/* AJUSTE AQUI: Adicionado SEGUNDA E QUARTA / TERÇA E QUINTA ao lado do horário */}
                                 <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
                                     {cursoAtivo.oficina} — {cursoAtivo.horario} — {String(cursoAtivo.dias).includes('1') ? "SEGUNDA E QUARTA" : "TERÇA E QUINTA"}
                                 </p>
