@@ -33,6 +33,8 @@
         .status-f { background-color: #fee2e2 !important; color: #991b1b !important; }
         .btn-menu { transition: all 0.2s; border: 2px solid #000; box-shadow: 4px 4px 0px #000; }
         .btn-menu:hover { transform: translateY(-2px); box-shadow: 6px 6px 0px #000; }
+        .btn-delete { color: #ef4444; opacity: 0; transition: opacity 0.2s; }
+        tr:hover .btn-delete { opacity: 1; }
     </style>
 </head>
 <body>
@@ -68,11 +70,31 @@
             }
 
             async function fetchDados() {
-                const { data: alData } = await supabaseClient.from('alunos').select('*').eq('turma_id', idAtivo).eq('mes', mes).order('posicao', { ascending: true });
-                const { data: preData } = await supabaseClient.from('frequencia').select('*').eq('turma_id', idAtivo).eq('mes', mes);
+                // BUSCA ALUNOS: Removemos o filtro de mês para os nomes não sumirem
+                const { data: alData } = await supabaseClient.from('alunos')
+                    .select('*')
+                    .eq('turma_id', idAtivo)
+                    .order('posicao', { ascending: true });
+
+                // BUSCA FREQUÊNCIA: Mantemos o filtro de mês
+                const { data: preData } = await supabaseClient.from('frequencia')
+                    .select('*')
+                    .eq('turma_id', idAtivo)
+                    .eq('mes', mes);
                 
-                const listaAlunos = alData && alData.length > 0 ? alData.map(a => a.nome) : [""];
-                setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: listaAlunos } }));
+                // Mapeia os nomes respeitando as posições originais
+                const nomesMap = {};
+                alData?.forEach(a => {
+                    if (!nomesMap[a.posicao]) nomesMap[a.posicao] = a.nome;
+                });
+
+                const maxPos = alData && alData.length > 0 ? Math.max(...alData.map(a => a.posicao)) : 0;
+                const listaFinal = [];
+                for(let i=0; i <= maxPos; i++) {
+                    listaFinal[i] = nomesMap[i] || "";
+                }
+                
+                setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: listaFinal } }));
 
                 const gridPre = {};
                 preData?.forEach(p => {
@@ -85,7 +107,19 @@
             const salvarAluno = async (index, nome) => {
                 const nomeFinal = nome.toUpperCase().trim();
                 if(!nomeFinal) return;
-                await supabaseClient.from('alunos').upsert({ turma_id: idAtivo, nome: nomeFinal, mes: mes, posicao: index }, { onConflict: 'turma_id, mes, posicao' });
+                // Upsert baseado na POSIÇÃO para manter o nome em todos os meses
+                await supabaseClient.from('alunos').upsert(
+                    { turma_id: idAtivo, nome: nomeFinal, mes: mes, posicao: index }, 
+                    { onConflict: 'turma_id, posicao' }
+                );
+            };
+
+            const removerAluno = async (index) => {
+                if (confirm("Deseja apagar este aluno e todo o histórico de faltas dele?")) {
+                    await supabaseClient.from('alunos').delete().match({ turma_id: idAtivo, posicao: index });
+                    await supabaseClient.from('frequencia').delete().match({ turma_id: idAtivo, aluno_posicao: index });
+                    fetchDados();
+                }
             };
 
             const adicionarLinha = () => {
@@ -95,7 +129,6 @@
                 });
             };
 
-            // --- CORREÇÃO DO ERRO 409 ---
             const alternarPresenca = async (alunoPos, dataAula) => {
                 const atual = presencas[alunoPos]?.[dataAula] || "";
                 let novoStatus = "";
@@ -104,13 +137,11 @@
                 else if (atual === "P") novoStatus = "F";
                 else novoStatus = "";
 
-                // Atualiza visual na hora
                 setPresencas(prev => ({
                     ...prev,
                     [alunoPos]: { ...(prev[alunoPos] || {}), [dataAula]: novoStatus }
                 }));
 
-                // Sincroniza sem conflito (Upsert com onConflict)
                 if (novoStatus === "") {
                     await supabaseClient.from('frequencia')
                         .delete()
@@ -227,15 +258,19 @@
                                 {nomesAtuais.map((nome, i) => {
                                     const faltas = Object.values(presencas[i] || {}).filter(v => v === "F").length;
                                     return (
-                                        <tr key={i}>
-                                            <td className="text-center text-[10px] font-bold text-gray-400">{i+1}</td>
-                                            <td>
+                                        <tr key={i} className="group">
+                                            <td className="text-center text-[10px] font-bold text-gray-400">
+                                                <button onClick={() => removerAluno(i)} className="no-print btn-delete mr-1 font-black">✕</button>
+                                                {i+1}
+                                            </td>
+                                            <td className="relative">
                                                 <input 
-                                                    className={`input-aluno ${faltas >= 3 ? 'text-red-600' : ''}`} 
+                                                    className={`input-aluno ${faltas >= 4 ? 'text-red-600 font-black bg-red-50' : ''}`} 
                                                     defaultValue={nome} 
                                                     onBlur={(e) => salvarAluno(i, e.target.value)} 
                                                     placeholder="Digite o nome..."
                                                 />
+                                                {faltas >= 4 && <span className="no-print absolute right-2 top-3 text-[8px] font-black text-red-600 animate-pulse">📞 LIGAR</span>}
                                             </td>
                                             {datasAulas.map(dt => {
                                                 const status = presencas[i]?.[dt] || "";
@@ -247,7 +282,7 @@
                                                     </td>
                                                 );
                                             })}
-                                            <td className={`text-center font-black total-faltas-col ${faltas >= 3 ? 'bg-red-100 text-red-600' : 'bg-gray-50 text-gray-400'}`}>
+                                            <td className={`text-center font-black total-faltas-col ${faltas >= 4 ? 'bg-red-600 text-white' : 'bg-gray-50 text-gray-400'}`}>
                                                 {faltas > 0 ? faltas : ""}
                                             </td>
                                         </tr>
