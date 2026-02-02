@@ -12,17 +12,21 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        
         @media print {
             @page { size: landscape; margin: 1cm; }
             .no-print { display: none !important; }
             body { background: white !important; padding: 0 !important; }
             .folha-container { box-shadow: none !important; border: none !important; width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
             table { width: 100% !important; border: 1.5pt solid black !important; }
-            th, td { border: 1pt solid black !important; height: 30px !important; color: black !important; }
+            th, td { border: 1pt solid black !important; height: 35px !important; color: black !important; }
             .total-faltas-col { display: none !important; }
             .status-p, .status-f { color: black !important; background: transparent !important; }
             .input-aluno { font-size: 11pt !important; font-weight: bold !important; color: black !important; }
+            /* Remove o texto de placeholder na impressão */
+            input::placeholder { color: transparent !important; }
         }
+
         .folha-container { background: white; max-width: 1100px; margin: 2rem auto; padding: 2.5rem; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); border-radius: 4px; border-top: 8px solid #000; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th { background: #f1f5f9; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.05em; padding: 8px 4px; border: 1px solid #cbd5e1; }
@@ -33,7 +37,7 @@
         .status-f { background-color: #fee2e2 !important; color: #991b1b !important; }
         .btn-menu { transition: all 0.2s; border: 2px solid #000; box-shadow: 4px 4px 0px #000; }
         .btn-menu:hover { transform: translateY(-2px); box-shadow: 6px 6px 0px #000; }
-        .btn-delete { color: #ef4444; opacity: 0; transition: opacity 0.2s; }
+        .btn-delete { color: #ef4444; opacity: 0; transition: opacity 0.2s; cursor: pointer; }
         tr:hover .btn-delete { opacity: 1; }
     </style>
 </head>
@@ -70,19 +74,16 @@
             }
 
             async function fetchDados() {
-                // BUSCA ALUNOS: Removemos o filtro de mês para os nomes não sumirem
                 const { data: alData } = await supabaseClient.from('alunos')
                     .select('*')
                     .eq('turma_id', idAtivo)
                     .order('posicao', { ascending: true });
 
-                // BUSCA FREQUÊNCIA: Mantemos o filtro de mês
                 const { data: preData } = await supabaseClient.from('frequencia')
                     .select('*')
                     .eq('turma_id', idAtivo)
                     .eq('mes', mes);
                 
-                // Mapeia os nomes respeitando as posições originais
                 const nomesMap = {};
                 alData?.forEach(a => {
                     if (!nomesMap[a.posicao]) nomesMap[a.posicao] = a.nome;
@@ -107,11 +108,11 @@
             const salvarAluno = async (index, nome) => {
                 const nomeFinal = nome.toUpperCase().trim();
                 if(!nomeFinal) return;
-                // Upsert baseado na POSIÇÃO para manter o nome em todos os meses
                 await supabaseClient.from('alunos').upsert(
                     { turma_id: idAtivo, nome: nomeFinal, mes: mes, posicao: index }, 
                     { onConflict: 'turma_id, posicao' }
                 );
+                fetchDados(); // Garante atualização
             };
 
             const removerAluno = async (index) => {
@@ -131,11 +132,7 @@
 
             const alternarPresenca = async (alunoPos, dataAula) => {
                 const atual = presencas[alunoPos]?.[dataAula] || "";
-                let novoStatus = "";
-
-                if (atual === "") novoStatus = "P";
-                else if (atual === "P") novoStatus = "F";
-                else novoStatus = "";
+                let novoStatus = (atual === "") ? "P" : (atual === "P") ? "F" : "";
 
                 setPresencas(prev => ({
                     ...prev,
@@ -143,15 +140,12 @@
                 }));
 
                 if (novoStatus === "") {
-                    await supabaseClient.from('frequencia')
-                        .delete()
-                        .match({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula });
+                    await supabaseClient.from('frequencia').delete().match({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula });
                 } else {
-                    await supabaseClient.from('frequencia')
-                        .upsert(
-                            { turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula, status: novoStatus },
-                            { onConflict: 'turma_id,mes,aluno_posicao,data_aula' }
-                        );
+                    await supabaseClient.from('frequencia').upsert(
+                        { turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula, status: novoStatus },
+                        { onConflict: 'turma_id,mes,aluno_posicao,data_aula' }
+                    );
                 }
             };
 
@@ -268,7 +262,7 @@
                                                     className={`input-aluno ${faltas >= 4 ? 'text-red-600 font-black bg-red-50' : ''}`} 
                                                     defaultValue={nome} 
                                                     onBlur={(e) => salvarAluno(i, e.target.value)} 
-                                                    placeholder="Digite o nome..."
+                                                    placeholder=" "
                                                 />
                                                 {faltas >= 4 && <span className="no-print absolute right-2 top-3 text-[8px] font-black text-red-600 animate-pulse">📞 LIGAR</span>}
                                             </td>
@@ -292,7 +286,7 @@
                         </table>
 
                         <button onClick={adicionarLinha} className="no-print mt-4 text-[10px] font-black uppercase bg-gray-100 px-4 py-2 border border-black hover:bg-black hover:text-white transition-colors">
-                            + Adicionar Aluno nesta Turma
+                            + Adicionar Linha em Branco
                         </button>
                     </div>
                 </div>
