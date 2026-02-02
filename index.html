@@ -23,7 +23,6 @@
             .total-faltas-col { display: none !important; }
             .status-p, .status-f { color: black !important; background: transparent !important; }
             .input-aluno { font-size: 11pt !important; font-weight: bold !important; color: black !important; }
-            /* Remove o texto de placeholder na impressão */
             input::placeholder { color: transparent !important; }
         }
 
@@ -61,42 +60,42 @@
             const [presencas, setPresencas] = useState({});
             const [loading, setLoading] = useState(true);
 
+            const mesesNomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
             useEffect(() => { fetchTurmas(); }, []);
             useEffect(() => { if (idAtivo) fetchDados(); }, [idAtivo, mes]);
 
+            const getFraseMotivacional = (oficina) => {
+                const curso = oficina.toUpperCase();
+                if (curso.includes("BALLET")) return "Onde o corpo flutua, a alma encontra seu ritmo.";
+                if (curso.includes("DANÇA")) return "A liberdade se manifesta em cada passo que você ensaia.";
+                if (curso.includes("TEATRO")) return "Viver mil vidas em uma só: a mágica de ser quem você quiser.";
+                if (curso.includes("VIOLÃO") || curso.includes("MÚSICA")) return "Sintonize seu coração na frequência da harmonia.";
+                if (curso.includes("PIANO") || curso.includes("TECLADO")) return "Cada tecla é um portal para um novo sentimento.";
+                if (curso.includes("CANTO") || curso.includes("CORAL")) return "Sua voz é o instrumento mais sincero da natureza.";
+                if (curso.includes("DESENHO") || curso.includes("PINTURA")) return "Suas mãos dão cor ao que o mundo ainda não viu.";
+                if (curso.includes("ARTESANATO")) return "Transformando matéria bruta em poesia feita à mão.";
+                if (curso.includes("CAPOEIRA")) return "Resistência que vira arte, movimento que vira história.";
+                return "A cultura é o fôlego que renova a nossa identidade.";
+            };
+
             async function fetchTurmas() {
                 const { data } = await supabaseClient.from('turmas').select('*');
-                if (data) {
-                    const ordenadas = data.sort((a, b) => a.horario.localeCompare(b.horario));
-                    setTurmas(ordenadas);
-                }
+                if (data) setTurmas(data.sort((a, b) => a.horario.localeCompare(b.horario)));
                 setLoading(false);
             }
 
             async function fetchDados() {
-                const { data: alData } = await supabaseClient.from('alunos')
-                    .select('*')
-                    .eq('turma_id', idAtivo)
-                    .order('posicao', { ascending: true });
-
-                const { data: preData } = await supabaseClient.from('frequencia')
-                    .select('*')
-                    .eq('turma_id', idAtivo)
-                    .eq('mes', mes);
+                const { data: alData } = await supabaseClient.from('alunos').select('*').eq('turma_id', idAtivo).order('posicao', { ascending: true });
+                const { data: preData } = await supabaseClient.from('frequencia').select('*').eq('turma_id', idAtivo).eq('mes', mes);
                 
                 const nomesMap = {};
-                alData?.forEach(a => {
-                    if (!nomesMap[a.posicao]) nomesMap[a.posicao] = a.nome;
-                });
-
+                alData?.forEach(a => { if (!nomesMap[a.posicao]) nomesMap[a.posicao] = a.nome; });
                 const maxPos = alData && alData.length > 0 ? Math.max(...alData.map(a => a.posicao)) : 0;
                 const listaFinal = [];
-                for(let i=0; i <= maxPos; i++) {
-                    listaFinal[i] = nomesMap[i] || "";
-                }
+                for(let i=0; i <= maxPos; i++) { listaFinal[i] = nomesMap[i] || ""; }
                 
                 setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: listaFinal } }));
-
                 const gridPre = {};
                 preData?.forEach(p => {
                     if(!gridPre[p.aluno_posicao]) gridPre[p.aluno_posicao] = {};
@@ -108,15 +107,12 @@
             const salvarAluno = async (index, nome) => {
                 const nomeFinal = nome.toUpperCase().trim();
                 if(!nomeFinal) return;
-                await supabaseClient.from('alunos').upsert(
-                    { turma_id: idAtivo, nome: nomeFinal, mes: mes, posicao: index }, 
-                    { onConflict: 'turma_id, posicao' }
-                );
-                fetchDados(); // Garante atualização
+                await supabaseClient.from('alunos').upsert({ turma_id: idAtivo, nome: nomeFinal, mes: mes, posicao: index }, { onConflict: 'turma_id, posicao' });
+                fetchDados();
             };
 
             const removerAluno = async (index) => {
-                if (confirm("Deseja apagar este aluno e todo o histórico de faltas dele?")) {
+                if (confirm("Deseja apagar este aluno definitivamente?")) {
                     await supabaseClient.from('alunos').delete().match({ turma_id: idAtivo, posicao: index });
                     await supabaseClient.from('frequencia').delete().match({ turma_id: idAtivo, aluno_posicao: index });
                     fetchDados();
@@ -133,19 +129,11 @@
             const alternarPresenca = async (alunoPos, dataAula) => {
                 const atual = presencas[alunoPos]?.[dataAula] || "";
                 let novoStatus = (atual === "") ? "P" : (atual === "P") ? "F" : "";
-
-                setPresencas(prev => ({
-                    ...prev,
-                    [alunoPos]: { ...(prev[alunoPos] || {}), [dataAula]: novoStatus }
-                }));
-
+                setPresencas(prev => ({ ...prev, [alunoPos]: { ...(prev[alunoPos] || {}), [dataAula]: novoStatus } }));
                 if (novoStatus === "") {
                     await supabaseClient.from('frequencia').delete().match({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula });
                 } else {
-                    await supabaseClient.from('frequencia').upsert(
-                        { turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula, status: novoStatus },
-                        { onConflict: 'turma_id,mes,aluno_posicao,data_aula' }
-                    );
+                    await supabaseClient.from('frequencia').upsert({ turma_id: idAtivo, mes, aluno_posicao: alunoPos, data_aula: dataAula, status: novoStatus }, { onConflict: 'turma_id,mes,aluno_posicao,data_aula' });
                 }
             };
 
@@ -155,14 +143,12 @@
                 const ultimoDia = new Date(2026, mes + 1, 0).getDate();
                 for (let d = 1; d <= ultimoDia; d++) {
                     const dataProd = new Date(2026, mes, d);
-                    if (diasSemana.includes(dataProd.getDay())) {
-                        datas.push(`${d < 10 ? '0'+d : d}/${mes+1 < 10 ? '0'+(mes+1) : mes+1}`);
-                    }
+                    if (diasSemana.includes(dataProd.getDay())) datas.push(`${d < 10 ? '0'+d : d}/${mes+1 < 10 ? '0'+(mes+1) : mes+1}`);
                 }
                 return datas.slice(0, 10);
             };
 
-            if (loading) return <div className="h-screen flex items-center justify-center font-black animate-pulse">CARREGANDO SISTEMA...</div>;
+            if (loading) return <div className="h-screen flex items-center justify-center font-black animate-pulse uppercase">Carregando...</div>;
 
             if (tela === 'menu') return (
                 <div className="min-h-screen p-8">
@@ -187,13 +173,11 @@
                             if (filtradas.length === 0) return null;
                             return (
                                 <div key={dKey}>
-                                    <h3 className="text-xs font-black bg-black text-white p-2 mb-4 text-center uppercase tracking-tighter">
-                                        {dKey === 1 ? "Segundas e Quartas" : "Terças e Quintas"}
-                                    </h3>
+                                    <h3 className="text-xs font-black bg-black text-white p-2 mb-4 text-center uppercase">{dKey === 1 ? "Segundas e Quartas" : "Terças e Quintas"}</h3>
                                     <div className="space-y-2">
                                         {filtradas.map(c => (
-                                            <div key={c.id} onClick={() => {setIdAtivo(c.id); setTela('chamada');}} className="bg-white border-2 border-gray-200 p-4 cursor-pointer hover:border-black transition-all flex justify-between items-center group shadow-sm">
-                                                <span className="font-black text-lg group-hover:scale-105 transition-transform">{c.horario}</span>
+                                            <div key={c.id} onClick={() => {setIdAtivo(c.id); setTela('chamada');}} className="bg-white border-2 border-gray-200 p-4 cursor-pointer hover:border-black flex justify-between items-center group shadow-sm">
+                                                <span className="font-black text-lg">{c.horario}</span>
                                                 <span className="text-[10px] font-black text-gray-400 uppercase italic">{c.oficina}</span>
                                             </div>
                                         ))}
@@ -219,23 +203,26 @@
                         </div>
                         <div className="flex items-center gap-4">
                             <select className="bg-gray-100 font-bold text-xs p-2 rounded border-2 border-black" value={mes} onChange={e => setMes(Number(e.target.value))}>
-                                {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"].map((m,i)=><option key={i} value={i}>{m.toUpperCase()}</option>)}
+                                {mesesNomes.map((m,i)=><option key={i} value={i}>{m.toUpperCase()}</option>)}
                             </select>
                             <button onClick={()=>window.print()} className="bg-black text-white px-6 py-2 text-xs font-black uppercase hover:bg-gray-800 shadow-[4px_4px_0px_#ccc]">Imprimir</button>
                         </div>
                     </nav>
 
                     <div className="folha-container">
-                        <header className="flex justify-between items-start mb-8 border-b-2 border-black pb-6">
+                        <header className="flex justify-between items-start mb-4 border-b-2 border-black pb-4">
                             <div>
                                 <h1 className="text-5xl font-black uppercase mb-1 leading-none tracking-tighter italic">{cursoAtivo.professor}</h1>
-                                <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+                                <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">
                                     {cursoAtivo.oficina} — {cursoAtivo.horario} — {String(cursoAtivo.dias).includes('1') ? "SEGUNDA E QUARTA" : "TERÇA E QUINTA"}
+                                </p>
+                                <p className="text-[10px] font-medium italic text-gray-400 border-l-2 border-gray-200 pl-2">
+                                    "{getFraseMotivacional(cursoAtivo.oficina)}" — Excelente mês de {mesesNomes[mes]}!
                                 </p>
                             </div>
                             <div className="text-right">
-                                <span className="block text-[10px] font-black text-gray-400 uppercase">Frequência 2026</span>
-                                <span className="text-4xl font-black uppercase italic">{["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][mes]}</span>
+                                <span className="block text-[10px] font-black text-gray-400 uppercase tracking-tighter">Frequência 2026</span>
+                                <span className="text-4xl font-black uppercase italic">{mesesNomes[mes]}</span>
                             </div>
                         </header>
 
@@ -258,20 +245,13 @@
                                                 {i+1}
                                             </td>
                                             <td className="relative">
-                                                <input 
-                                                    className={`input-aluno ${faltas >= 4 ? 'text-red-600 font-black bg-red-50' : ''}`} 
-                                                    defaultValue={nome} 
-                                                    onBlur={(e) => salvarAluno(i, e.target.value)} 
-                                                    placeholder=" "
-                                                />
+                                                <input className={`input-aluno ${faltas >= 4 ? 'text-red-600 font-black bg-red-50' : ''}`} defaultValue={nome} onBlur={(e) => salvarAluno(i, e.target.value)} placeholder=" " />
                                                 {faltas >= 4 && <span className="no-print absolute right-2 top-3 text-[8px] font-black text-red-600 animate-pulse">📞 LIGAR</span>}
                                             </td>
                                             {datasAulas.map(dt => {
                                                 const status = presencas[i]?.[dt] || "";
                                                 return (
-                                                    <td key={dt} 
-                                                        onClick={() => alternarPresenca(i, dt)} 
-                                                        className={`celula-data ${status === 'P' ? 'status-p' : status === 'F' ? 'status-f' : ''}`}>
+                                                    <td key={dt} onClick={() => alternarPresenca(i, dt)} className={`celula-data ${status === 'P' ? 'status-p' : status === 'F' ? 'status-f' : ''}`}>
                                                         {status}
                                                     </td>
                                                 );
