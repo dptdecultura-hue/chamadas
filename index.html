@@ -71,7 +71,8 @@
                 if (oficina.includes("VIOLONCELO")) return 3;
                 if (oficina.includes("VIOLA")) return 3;
                 if (oficina.includes("PIANO")) return 2;
-                if (oficina.includes("FLAUTA")) return 1;
+                if (oficina.includes("FLAUTA DOCE")) return 10;
+                if (oficina.includes("FLAUTA")) return 1; // Transversal (regra genérica após flauta doce)
                 if (oficina.includes("BATERIA") || oficina.includes("PERCUSSÃO")) return 10;
                 return 15;
             };
@@ -102,6 +103,7 @@
                 const { data: alData } = await supabaseClient.from('alunos').select('*').eq('turma_id', idAtivo).order('posicao', { ascending: true });
                 const { data: preData } = await supabaseClient.from('frequencia').select('*').eq('turma_id', idAtivo).eq('mes', mes);
                 const listaFinal = [];
+                // Determina o número de linhas baseado no limite da oficina ou nos alunos cadastrados
                 const totalLinhas = Math.max(limite - 1, (alData?.length ? Math.max(...alData.map(a => a.posicao)) : 0));
                 for(let i=0; i <= totalLinhas; i++) { 
                     const alunoEncontrado = alData?.find(a => a.posicao === i);
@@ -127,8 +129,8 @@
                 const curso = turmas.find(c => c.id === idAtivo);
                 const limite = obterLimiteOficina(curso.oficina);
                 const nAtual = contagemAlunos[idAtivo] || 0;
-                if (nAtual >= limite) { alert("LIMITE ATINGIDO! Esta oficina só permite " + limite + " aluno(s)."); return; }
-                const nome = prompt("DIGITE O NOME DO NOVO ALUNO:");
+                if (nAtual >= limite) { alert("LIMITE ATINGIDO! Esta oficina permite " + limite + " aluno(s)."); return; }
+                const nome = prompt("NOME DO ALUNO:");
                 if (nome) {
                     const nomeFormatado = nome.toUpperCase().trim();
                     const listaAtual = alunos[idAtivo]?.[mes] || [];
@@ -141,7 +143,7 @@
             }
 
             const removerAluno = async (index) => {
-                if (confirm("Deseja apagar este aluno definitivamente?")) {
+                if (confirm("Apagar aluno?")) {
                     await supabaseClient.from('alunos').delete().match({ turma_id: idAtivo, posicao: index });
                     await supabaseClient.from('frequencia').delete().match({ turma_id: idAtivo, aluno_posicao: index });
                     fetchDados();
