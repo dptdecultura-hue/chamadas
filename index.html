@@ -76,6 +76,13 @@
                 return 15;
             };
 
+            const getDiasTexto = (dias) => {
+                const d = String(dias);
+                if (d.includes('1')) return "SEGUNDA E QUARTA";
+                if (d.includes('2')) return "TERÇA E QUINTA";
+                return "";
+            };
+
             useEffect(() => { fetchTurmas(); }, []);
             useEffect(() => { if (idAtivo) fetchDados(); }, [idAtivo, mes]);
 
@@ -92,19 +99,14 @@
             async function fetchDados() {
                 const curso = turmas.find(c => c.id === idAtivo);
                 const limite = curso ? obterLimiteOficina(curso.oficina) : 19;
-                
                 const { data: alData } = await supabaseClient.from('alunos').select('*').eq('turma_id', idAtivo).order('posicao', { ascending: true });
                 const { data: preData } = await supabaseClient.from('frequencia').select('*').eq('turma_id', idAtivo).eq('mes', mes);
-                
                 const listaFinal = [];
-                // Se for Piano, o maxPos é 1 (posições 0 e 1), se for violão, 14 (posições 0 a 14)
                 const totalLinhas = Math.max(limite - 1, (alData?.length ? Math.max(...alData.map(a => a.posicao)) : 0));
-                
                 for(let i=0; i <= totalLinhas; i++) { 
                     const alunoEncontrado = alData?.find(a => a.posicao === i);
                     listaFinal[i] = alunoEncontrado ? alunoEncontrado.nome : ""; 
                 }
-                
                 setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: listaFinal } }));
                 const gridPre = {};
                 preData?.forEach(p => {
@@ -125,19 +127,13 @@
                 const curso = turmas.find(c => c.id === idAtivo);
                 const limite = obterLimiteOficina(curso.oficina);
                 const nAtual = contagemAlunos[idAtivo] || 0;
-
-                if (nAtual >= limite) {
-                    alert("LIMITE ATINGIDO! Esta oficina só permite " + limite + " aluno(s).");
-                    return;
-                }
-
+                if (nAtual >= limite) { alert("LIMITE ATINGIDO! Esta oficina só permite " + limite + " aluno(s)."); return; }
                 const nome = prompt("DIGITE O NOME DO NOVO ALUNO:");
                 if (nome) {
                     const nomeFormatado = nome.toUpperCase().trim();
                     const listaAtual = alunos[idAtivo]?.[mes] || [];
                     let novaPos = listaAtual.findIndex(n => n === "");
                     if(novaPos === -1) novaPos = listaAtual.length;
-
                     await supabaseClient.from('alunos').upsert({ turma_id: idAtivo, nome: nomeFormatado, posicao: novaPos });
                     fetchDados();
                     fetchTurmas();
@@ -185,7 +181,7 @@
             if (tela === 'menu') return (
                 <div className="min-h-screen p-8">
                     <div className="max-w-6xl mx-auto">
-                        <h1 className="text-4xl font-black mb-12 border-l-8 border-black pl-6 uppercase italic">Casa da Cultura <span className="text-gray-400">Jardim Europa</span></h1>
+                        <h1 className="text-4xl font-black mb-12 border-l-8 border-black pl-6 uppercase italic tracking-tighter">Casa da Cultura <span className="text-gray-400">Jardim Europa</span></h1>
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                             {[...new Set(turmas.map(t => t.professor))].sort().map(p => {
                                 const totalAlunosProf = turmas.filter(t => t.professor === p).reduce((acc, t) => acc + (contagemAlunos[t.id] || 0), 0);
@@ -204,14 +200,14 @@
             if (tela === 'lista') return (
                 <div className="min-h-screen p-8 max-w-4xl mx-auto">
                     <button onClick={() => setTela('menu')} className="text-xs font-black uppercase mb-8 hover:underline">← Voltar</button>
-                    <h2 className="text-5xl font-black mb-12 italic uppercase border-b-4 border-black pb-2">{profSel}</h2>
+                    <h2 className="text-5xl font-black mb-12 italic uppercase border-b-4 border-black pb-2 tracking-tighter">{profSel}</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {[1, 2].map(dKey => {
                             const filtradas = turmas.filter(c => c.professor.toUpperCase() === profSel.toUpperCase() && String(c.dias).includes(String(dKey)));
                             if (filtradas.length === 0) return null;
                             return (
                                 <div key={dKey}>
-                                    <h3 className="text-xs font-black bg-black text-white p-2 mb-4 text-center uppercase">{dKey === 1 ? "Segundas e Quartas" : "Terças e Quintas"}</h3>
+                                    <h3 className="text-xs font-black bg-black text-white p-2 mb-4 text-center uppercase tracking-widest">{dKey === 1 ? "Segundas e Quartas" : "Terças e Quintas"}</h3>
                                     <div className="space-y-4">
                                         {filtradas.map(c => {
                                             const limit = obterLimiteOficina(c.oficina);
@@ -220,8 +216,9 @@
                                                 <div key={c.id} onClick={() => {setIdAtivo(c.id); setTela('chamada');}} className={`relative bg-white border-2 p-4 cursor-pointer hover:border-black flex justify-between items-center shadow-sm ${n >= limit ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200'}`}>
                                                     {n >= limit && <span className="badge-lotado">LOTADO ({n}/{limit})</span>}
                                                     <div className="flex flex-col">
-                                                        <span className="font-black text-lg">{c.horario}</span>
-                                                        <span className="text-[10px] font-black text-gray-400 uppercase italic">{c.oficina}</span>
+                                                        <span className="font-black text-lg tracking-tighter">{c.horario}</span>
+                                                        <span className="text-[9px] font-black text-blue-500 uppercase italic mb-1">{getDiasTexto(c.dias)}</span>
+                                                        <span className="text-[10px] font-black text-gray-400 uppercase italic tracking-wider">{c.oficina}</span>
                                                     </div>
                                                     <span className="text-xs font-bold text-gray-500">{n}/{limit}</span>
                                                 </div>
@@ -245,7 +242,7 @@
                     <nav className="no-print bg-white border-b p-4 sticky top-0 z-50 flex justify-between items-center px-8 shadow-sm">
                         <div className="flex items-center gap-4">
                             <button onClick={()=>setTela('lista')} className="p-2 hover:bg-gray-100 rounded-full font-bold">←</button>
-                            <span className="font-black uppercase text-xs">{cursoAtivo.professor} | {cursoAtivo.oficina}</span>
+                            <span className="font-black uppercase text-xs">{cursoAtivo.professor} | {cursoAtivo.oficina} | {getDiasTexto(cursoAtivo.dias)}</span>
                         </div>
                         <div className="flex items-center gap-4">
                             <button onClick={adicionarNovoAlunoRapido} className="bg-blue-600 text-white px-4 py-2 text-[10px] font-black uppercase hover:bg-blue-700 shadow-[4px_4px_0px_#000]">Novo Aluno +</button>
@@ -260,7 +257,9 @@
                         <header className="flex justify-between items-start mb-4 border-b-2 border-black pb-4">
                             <div>
                                 <h1 className="text-5xl font-black uppercase mb-1 italic tracking-tighter leading-none">{cursoAtivo.professor}</h1>
-                                <p className="text-sm font-bold text-gray-500 uppercase">{cursoAtivo.oficina} — {cursoAtivo.horario}</p>
+                                <p className="text-sm font-bold text-gray-600 uppercase tracking-tighter">
+                                    {cursoAtivo.oficina} — {cursoAtivo.horario} — <span className="bg-black text-white px-2 py-0.5 rounded ml-1">{getDiasTexto(cursoAtivo.dias)}</span>
+                                </p>
                             </div>
                             <div className="text-right">
                                 <span className="block text-[10px] font-black text-gray-400 uppercase">Frequência 2026</span>
