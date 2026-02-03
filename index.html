@@ -34,10 +34,11 @@
         .celula-data { cursor: pointer; text-align: center; font-weight: 900; font-size: 1rem; user-select: none; }
         .status-p { background-color: #dcfce7 !important; color: #166534 !important; }
         .status-f { background-color: #fee2e2 !important; color: #991b1b !important; }
-        .btn-menu { transition: all 0.2s; border: 2px solid #000; box-shadow: 4px 4px 0px #000; }
+        .btn-menu { transition: all 0.2s; border: 2px solid #000; box-shadow: 4px 4px 0px #000; position: relative; }
         .btn-menu:hover { transform: translateY(-2px); box-shadow: 6px 6px 0px #000; }
         .btn-delete { color: #ef4444; opacity: 0; transition: opacity 0.2s; cursor: pointer; }
         tr:hover .btn-delete { opacity: 1; }
+        .badge-lotado { background: #facc15; color: #854d0e; font-size: 10px; padding: 2px 6px; border-radius: 99px; position: absolute; top: -10px; right: -10px; border: 2px solid #000; font-weight: 900; }
     </style>
 </head>
 <body>
@@ -59,41 +60,50 @@
             const [alunos, setAlunos] = useState({});
             const [presencas, setPresencas] = useState({});
             const [loading, setLoading] = useState(true);
+            const [contagemAlunos, setContagemAlunos] = useState({});
 
             const mesesNomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+            const obterLimiteOficina = (nomeOficina) => {
+                const oficina = nomeOficina.toUpperCase();
+                if (oficina.includes("VIOLÃO")) return 15;
+                if (oficina.includes("VIOLINO")) return 15;
+                if (oficina.includes("VIOLONCELO")) return 3;
+                if (oficina.includes("VIOLA")) return 3;
+                if (oficina.includes("PIANO")) return 2;
+                if (oficina.includes("FLAUTA")) return 1;
+                if (oficina.includes("BATERIA") || oficina.includes("PERCUSSÃO")) return 10;
+                return 15;
+            };
 
             useEffect(() => { fetchTurmas(); }, []);
             useEffect(() => { if (idAtivo) fetchDados(); }, [idAtivo, mes]);
 
-            const getFraseMotivacional = (oficina) => {
-                const curso = oficina.toUpperCase();
-                if (curso.includes("BALLET")) return "Onde o corpo flutua, a alma encontra seu ritmo.";
-                if (curso.includes("DANÇA")) return "A liberdade se manifesta em cada passo que você ensaia.";
-                if (curso.includes("TEATRO")) return "Viver mil vidas em uma só: a mágica de ser quem você quiser.";
-                if (curso.includes("VIOLÃO") || curso.includes("MÚSICA")) return "Sintonize seu coração na frequência da harmonia.";
-                if (curso.includes("PIANO") || curso.includes("TECLADO")) return "Cada tecla é um portal para um novo sentimento.";
-                if (curso.includes("CANTO") || curso.includes("CORAL")) return "Sua voz é o instrumento mais sincero da natureza.";
-                if (curso.includes("DESENHO") || curso.includes("PINTURA")) return "Suas mãos dão cor ao que o mundo ainda não viu.";
-                if (curso.includes("ARTESANATO")) return "Transformando matéria bruta em poesia feita à mão.";
-                if (curso.includes("CAPOEIRA")) return "Resistência que vira arte, movimento que vira história.";
-                return "A cultura é o fôlego que renova a nossa identidade.";
-            };
-
             async function fetchTurmas() {
-                const { data } = await supabaseClient.from('turmas').select('*');
-                if (data) setTurmas(data.sort((a, b) => a.horario.localeCompare(b.horario)));
+                const { data: tData } = await supabaseClient.from('turmas').select('*');
+                const { data: aData } = await supabaseClient.from('alunos').select('turma_id');
+                const contagem = {};
+                aData?.forEach(a => { contagem[a.turma_id] = (contagem[a.turma_id] || 0) + 1; });
+                setContagemAlunos(contagem);
+                if (tData) setTurmas(tData.sort((a, b) => a.horario.localeCompare(b.horario)));
                 setLoading(false);
             }
 
             async function fetchDados() {
+                const curso = turmas.find(c => c.id === idAtivo);
+                const limite = curso ? obterLimiteOficina(curso.oficina) : 19;
+                
                 const { data: alData } = await supabaseClient.from('alunos').select('*').eq('turma_id', idAtivo).order('posicao', { ascending: true });
                 const { data: preData } = await supabaseClient.from('frequencia').select('*').eq('turma_id', idAtivo).eq('mes', mes);
                 
-                const nomesMap = {};
-                alData?.forEach(a => { if (!nomesMap[a.posicao]) nomesMap[a.posicao] = a.nome; });
-                const maxPos = alData && alData.length > 0 ? Math.max(...alData.map(a => a.posicao)) : 0;
                 const listaFinal = [];
-                for(let i=0; i <= maxPos; i++) { listaFinal[i] = nomesMap[i] || ""; }
+                // Se for Piano, o maxPos é 1 (posições 0 e 1), se for violão, 14 (posições 0 a 14)
+                const totalLinhas = Math.max(limite - 1, (alData?.length ? Math.max(...alData.map(a => a.posicao)) : 0));
+                
+                for(let i=0; i <= totalLinhas; i++) { 
+                    const alunoEncontrado = alData?.find(a => a.posicao === i);
+                    listaFinal[i] = alunoEncontrado ? alunoEncontrado.nome : ""; 
+                }
                 
                 setAlunos(prev => ({ ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: listaFinal } }));
                 const gridPre = {};
@@ -107,26 +117,45 @@
             const salvarAluno = async (index, nome) => {
                 const nomeFinal = nome.toUpperCase().trim();
                 if(!nomeFinal) return;
-                await supabaseClient.from('alunos').upsert({ turma_id: idAtivo, nome: nomeFinal, mes: mes, posicao: index }, { onConflict: 'turma_id, posicao' });
-                fetchDados();
+                const { error } = await supabaseClient.from('alunos').upsert({ turma_id: idAtivo, nome: nomeFinal, posicao: index }, { onConflict: 'turma_id, posicao' });
+                if(!error) { fetchDados(); fetchTurmas(); }
             };
+
+            const adicionarNovoAlunoRapido = async () => {
+                const curso = turmas.find(c => c.id === idAtivo);
+                const limite = obterLimiteOficina(curso.oficina);
+                const nAtual = contagemAlunos[idAtivo] || 0;
+
+                if (nAtual >= limite) {
+                    alert("LIMITE ATINGIDO! Esta oficina só permite " + limite + " aluno(s).");
+                    return;
+                }
+
+                const nome = prompt("DIGITE O NOME DO NOVO ALUNO:");
+                if (nome) {
+                    const nomeFormatado = nome.toUpperCase().trim();
+                    const listaAtual = alunos[idAtivo]?.[mes] || [];
+                    let novaPos = listaAtual.findIndex(n => n === "");
+                    if(novaPos === -1) novaPos = listaAtual.length;
+
+                    await supabaseClient.from('alunos').upsert({ turma_id: idAtivo, nome: nomeFormatado, posicao: novaPos });
+                    fetchDados();
+                    fetchTurmas();
+                }
+            }
 
             const removerAluno = async (index) => {
                 if (confirm("Deseja apagar este aluno definitivamente?")) {
                     await supabaseClient.from('alunos').delete().match({ turma_id: idAtivo, posicao: index });
                     await supabaseClient.from('frequencia').delete().match({ turma_id: idAtivo, aluno_posicao: index });
                     fetchDados();
+                    fetchTurmas();
                 }
             };
 
-            const adicionarLinha = () => {
-                setAlunos(prev => {
-                    const currentList = prev[idAtivo]?.[mes] || [""];
-                    return { ...prev, [idAtivo]: { ...prev[idAtivo], [mes]: [...currentList, ""] } };
-                });
-            };
-
             const alternarPresenca = async (alunoPos, dataAula) => {
+                const nomeAluno = alunos[idAtivo]?.[mes][alunoPos];
+                if (!nomeAluno) return;
                 const atual = presencas[alunoPos]?.[dataAula] || "";
                 let novoStatus = (atual === "") ? "P" : (atual === "P") ? "F" : "";
                 setPresencas(prev => ({ ...prev, [alunoPos]: { ...(prev[alunoPos] || {}), [dataAula]: novoStatus } }));
@@ -139,10 +168,8 @@
 
             const getDatasDoMes = (diasSemanaInput) => {
                 const datas = [];
-                // Trata diasSemanaInput como string ou array
                 const diasLimpos = String(diasSemanaInput).replace(/[^0-9,]/g, '');
                 const diasSemana = diasLimpos.split(',').map(Number);
-                
                 const ultimoDia = new Date(2026, mes + 1, 0).getDate();
                 for (let d = 1; d <= ultimoDia; d++) {
                     const dataProd = new Date(2026, mes, d);
@@ -153,16 +180,22 @@
                 return datas.slice(0, 10);
             };
 
-            if (loading) return <div className="h-screen flex items-center justify-center font-black animate-pulse uppercase">Carregando...</div>;
+            if (loading) return <div className="h-screen flex items-center justify-center font-black animate-pulse uppercase text-2xl">Carregando...</div>;
 
             if (tela === 'menu') return (
                 <div className="min-h-screen p-8">
                     <div className="max-w-6xl mx-auto">
-                        <h1 className="text-4xl font-black mb-12 border-l-8 border-black pl-6 uppercase">Casa da Cultura <span className="text-gray-400">Jardim Europa</span></h1>
+                        <h1 className="text-4xl font-black mb-12 border-l-8 border-black pl-6 uppercase italic">Casa da Cultura <span className="text-gray-400">Jardim Europa</span></h1>
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                            {[...new Set(turmas.map(t => t.professor))].sort().map(p => (
-                                <button key={p} onClick={() => {setProfSel(p); setTela('lista');}} className="btn-menu bg-white p-8 font-black text-sm uppercase tracking-widest">{p}</button>
-                            ))}
+                            {[...new Set(turmas.map(t => t.professor))].sort().map(p => {
+                                const totalAlunosProf = turmas.filter(t => t.professor === p).reduce((acc, t) => acc + (contagemAlunos[t.id] || 0), 0);
+                                return (
+                                    <button key={p} onClick={() => {setProfSel(p); setTela('lista');}} className="btn-menu bg-white p-8 font-black text-sm uppercase tracking-widest flex flex-col items-center">
+                                        {p}
+                                        <span className="text-[10px] text-blue-600 mt-2">{totalAlunosProf} Alunos</span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
@@ -174,27 +207,26 @@
                     <h2 className="text-5xl font-black mb-12 italic uppercase border-b-4 border-black pb-2">{profSel}</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         {[1, 2].map(dKey => {
-                            const filtradas = turmas.filter(c => {
-                                const mesmoProf = c.professor.toUpperCase() === profSel.toUpperCase();
-                                // Lógica para Arrays do Supabase {1} ou {2}
-                                const diaArray = Array.isArray(c.dias) ? c.dias : [c.dias];
-                                const temODia = diaArray.some(d => String(d).includes(String(dKey)));
-                                return mesmoProf && temODia;
-                            });
-
+                            const filtradas = turmas.filter(c => c.professor.toUpperCase() === profSel.toUpperCase() && String(c.dias).includes(String(dKey)));
                             if (filtradas.length === 0) return null;
                             return (
                                 <div key={dKey}>
-                                    <h3 className="text-xs font-black bg-black text-white p-2 mb-4 text-center uppercase">
-                                        {dKey === 1 ? "Segundas e Quartas" : "Terças e Quintas"}
-                                    </h3>
-                                    <div className="space-y-2">
-                                        {filtradas.map(c => (
-                                            <div key={c.id} onClick={() => {setIdAtivo(c.id); setTela('chamada');}} className="bg-white border-2 border-gray-200 p-4 cursor-pointer hover:border-black flex justify-between items-center group shadow-sm">
-                                                <span className="font-black text-lg">{c.horario}</span>
-                                                <span className="text-[10px] font-black text-gray-400 uppercase italic">{c.oficina}</span>
-                                            </div>
-                                        ))}
+                                    <h3 className="text-xs font-black bg-black text-white p-2 mb-4 text-center uppercase">{dKey === 1 ? "Segundas e Quartas" : "Terças e Quintas"}</h3>
+                                    <div className="space-y-4">
+                                        {filtradas.map(c => {
+                                            const limit = obterLimiteOficina(c.oficina);
+                                            const n = contagemAlunos[c.id] || 0;
+                                            return (
+                                                <div key={c.id} onClick={() => {setIdAtivo(c.id); setTela('chamada');}} className={`relative bg-white border-2 p-4 cursor-pointer hover:border-black flex justify-between items-center shadow-sm ${n >= limit ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200'}`}>
+                                                    {n >= limit && <span className="badge-lotado">LOTADO ({n}/{limit})</span>}
+                                                    <div className="flex flex-col">
+                                                        <span className="font-black text-lg">{c.horario}</span>
+                                                        <span className="text-[10px] font-black text-gray-400 uppercase italic">{c.oficina}</span>
+                                                    </div>
+                                                    <span className="text-xs font-bold text-gray-500">{n}/{limit}</span>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             );
@@ -206,16 +238,17 @@
             const cursoAtivo = turmas.find(c => c.id === idAtivo);
             if (!cursoAtivo) return null;
             const datasAulas = getDatasDoMes(cursoAtivo.dias);
-            const nomesAtuais = (alunos[idAtivo]?.[mes]) || [""];
+            const nomesAtuais = (alunos[idAtivo]?.[mes]) || [];
 
             return (
                 <div className="min-h-screen pb-20">
                     <nav className="no-print bg-white border-b p-4 sticky top-0 z-50 flex justify-between items-center px-8 shadow-sm">
                         <div className="flex items-center gap-4">
                             <button onClick={()=>setTela('lista')} className="p-2 hover:bg-gray-100 rounded-full font-bold">←</button>
-                            <span className="font-black uppercase text-xs tracking-widest">{cursoAtivo.professor} | {cursoAtivo.horario}</span>
+                            <span className="font-black uppercase text-xs">{cursoAtivo.professor} | {cursoAtivo.oficina}</span>
                         </div>
                         <div className="flex items-center gap-4">
+                            <button onClick={adicionarNovoAlunoRapido} className="bg-blue-600 text-white px-4 py-2 text-[10px] font-black uppercase hover:bg-blue-700 shadow-[4px_4px_0px_#000]">Novo Aluno +</button>
                             <select className="bg-gray-100 font-bold text-xs p-2 rounded border-2 border-black" value={mes} onChange={e => setMes(Number(e.target.value))}>
                                 {mesesNomes.map((m,i)=><option key={i} value={i}>{m.toUpperCase()}</option>)}
                             </select>
@@ -226,16 +259,11 @@
                     <div className="folha-container">
                         <header className="flex justify-between items-start mb-4 border-b-2 border-black pb-4">
                             <div>
-                                <h1 className="text-5xl font-black uppercase mb-1 leading-none tracking-tighter italic">{cursoAtivo.professor}</h1>
-                                <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">
-                                    {cursoAtivo.oficina} — {cursoAtivo.horario} — {String(cursoAtivo.dias).includes('1') ? "SEGUNDA E QUARTA" : "TERÇA E QUINTA"}
-                                </p>
-                                <p className="text-[10px] font-medium italic text-gray-400 border-l-2 border-gray-200 pl-2">
-                                    "{getFraseMotivacional(cursoAtivo.oficina)}" — Excelente mês de {mesesNomes[mes]}!
-                                </p>
+                                <h1 className="text-5xl font-black uppercase mb-1 italic tracking-tighter leading-none">{cursoAtivo.professor}</h1>
+                                <p className="text-sm font-bold text-gray-500 uppercase">{cursoAtivo.oficina} — {cursoAtivo.horario}</p>
                             </div>
                             <div className="text-right">
-                                <span className="block text-[10px] font-black text-gray-400 uppercase tracking-tighter">Frequência 2026</span>
+                                <span className="block text-[10px] font-black text-gray-400 uppercase">Frequência 2026</span>
                                 <span className="text-4xl font-black uppercase italic">{mesesNomes[mes]}</span>
                             </div>
                         </header>
@@ -260,7 +288,7 @@
                                             </td>
                                             <td className="relative">
                                                 <input className={`input-aluno ${faltas >= 4 ? 'text-red-600 font-black bg-red-50' : ''}`} defaultValue={nome} onBlur={(e) => salvarAluno(i, e.target.value)} placeholder=" " />
-                                                {faltas >= 4 && <span className="no-print absolute right-2 top-3 text-[8px] font-black text-red-600 animate-pulse">📞 LIGAR</span>}
+                                                {faltas >= 4 && <span className="no-print absolute right-2 top-3 text-[8px] font-black text-red-600 animate-pulse tracking-tighter">📞 LIGAR</span>}
                                             </td>
                                             {datasAulas.map(dt => {
                                                 const status = presencas[i]?.[dt] || "";
@@ -278,10 +306,6 @@
                                 })}
                             </tbody>
                         </table>
-
-                        <button onClick={adicionarLinha} className="no-print mt-4 text-[10px] font-black uppercase bg-gray-100 px-4 py-2 border border-black hover:bg-black hover:text-white transition-colors">
-                            + Adicionar Linha em Branco
-                        </button>
                     </div>
                 </div>
             );
