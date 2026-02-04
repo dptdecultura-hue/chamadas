@@ -77,7 +77,15 @@
             };
 
             useEffect(() => { fetchTurmas(); }, []);
-            useEffect(() => { if (idAtivo) fetchDados(); }, [idAtivo, mes]);
+            
+            // RESET ao trocar de turma/mês para evitar "embaralhamento"
+            useEffect(() => { 
+                if (idAtivo) {
+                    setAlunosLocais([]); 
+                    setPresencas({});
+                    fetchDados(); 
+                } 
+            }, [idAtivo, mes]);
 
             async function fetchTurmas() {
                 const { data: tData } = await supabaseClient.from('turmas').select('*');
@@ -100,7 +108,7 @@
                     .eq('turma_id', idAtivo)
                     .eq('mes', mes);
 
-                setAlunosLocais(alData || []);
+                if (alData) setAlunosLocais(alData);
 
                 const gridPre = {};
                 preData?.forEach(p => {
@@ -110,8 +118,15 @@
                 setPresencas(gridPre);
             }
 
-            const salvarAluno = async (index, novoNome, idReal) => {
-                const nomeFinal = novoNome.toUpperCase().trim();
+            const editarNomeLocal = (index, novoNome) => {
+                const novaLista = [...alunosLocais];
+                novaLista[index].nome = novoNome.toUpperCase();
+                setAlunosLocais(novaLista);
+            };
+
+            const salvarAlunoNoBanco = async (index, idReal) => {
+                const aluno = alunosLocais[index];
+                const nomeFinal = aluno.nome.trim();
                 
                 if (nomeFinal === "" && idReal) {
                     await removerLinha(index, idReal);
@@ -119,25 +134,20 @@
                 }
 
                 if (nomeFinal !== "") {
-                    const { data } = await supabaseClient.from('alunos').upsert({ 
+                    await supabaseClient.from('alunos').upsert({ 
                         id: idReal || undefined,
                         turma_id: idAtivo, 
                         nome: nomeFinal, 
                         posicao: index 
-                    }, { onConflict: 'id' }).select();
-                    
-                    if (data) {
-                        const novaLista = [...alunosLocais];
-                        novaLista[index] = data[0];
-                        setAlunosLocais(novaLista);
-                    }
+                    });
                 }
                 fetchTurmas();
             };
 
             const adicionarLinhaVazia = () => {
                 const novaPosicao = alunosLocais.length;
-                setAlunosLocais([...alunosLocais, { nome: "", posicao: novaPosicao, id: null }]);
+                // Usamos Date.now() como ID temporário para garantir que a Key do React seja única
+                setAlunosLocais([...alunosLocais, { nome: "", posicao: novaPosicao, id: null, tempId: Date.now() }]);
             };
 
             const removerLinha = async (index, idReal) => {
@@ -148,8 +158,7 @@
                 }
                 
                 const novaLista = alunosLocais.filter((_, i) => i !== index);
-                const listaAjustada = novaLista.map((al, idx) => ({ ...al, posicao: idx }));
-                setAlunosLocais(listaAjustada);
+                setAlunosLocais(novaLista.map((al, idx) => ({ ...al, posicao: idx })));
                 fetchTurmas();
             };
 
@@ -298,7 +307,7 @@
                                 {alunosLocais.map((aluno, i) => {
                                     const faltas = Object.values(presencas[i] || {}).filter(v => v === "F").length;
                                     return (
-                                        <tr key={i} className="group">
+                                        <tr key={aluno.id || aluno.tempId} className="group">
                                             <td className="text-center text-[10px] font-bold text-gray-400">
                                                 <button onClick={() => removerLinha(i, aluno.id)} className="no-print btn-delete mr-1" title="Apagar Linha">🗑️</button>
                                                 {i+1}
@@ -306,8 +315,9 @@
                                             <td className="relative">
                                                 <input 
                                                     className={`input-aluno ${faltas >= 4 ? 'text-red-600 font-black bg-red-50' : ''}`} 
-                                                    defaultValue={aluno.nome} 
-                                                    onBlur={(e) => salvarAluno(i, e.target.value, aluno.id)} 
+                                                    value={aluno.nome}
+                                                    onChange={(e) => editarNomeLocal(i, e.target.value)}
+                                                    onBlur={() => salvarAlunoNoBanco(i, aluno.id)} 
                                                     placeholder="NOME DO ALUNO..." 
                                                 />
                                                 {faltas >= 4 && <span className="no-print absolute right-2 top-3 text-[8px] font-black text-red-600 animate-pulse tracking-tighter">📞 LIGAR</span>}
